@@ -20,9 +20,12 @@ importers:
 
   apps/cli:
     dependencies:
-      '@context-compiler/config':
+      '@context-compiler/core':
         specifier: workspace:*
-        version: link:../../packages/config
+        version: link:../../packages/core
+      '@context-compiler/tokenizers':
+        specifier: workspace:*
+        version: link:../../packages/tokenizers
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -30,6 +33,9 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.17)
 
   packages/config:
     devDependencies:
@@ -39,6 +45,9 @@ importers:
 
   packages/core:
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

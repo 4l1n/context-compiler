@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { PromptBlock, AnalysisReport, OptimizationChange } from './types.js';
+import type { PromptBlock, AnalysisReport, OptimizationChange, AnalyzedBlock } from './types.js';
 
 describe('PromptBlock', () => {
   it('accepts valid block', () => {
@@ -23,16 +23,33 @@ describe('PromptBlock', () => {
   });
 });
 
+describe('AnalyzedBlock', () => {
+  it('accepts valid analyzed block', () => {
+    const block: AnalyzedBlock = {
+      id: 'block-1',
+      content: 'You are an assistant.',
+      type: 'instruction',
+      tokenCount: 5,
+      tokenPercent: 100,
+    };
+    expect(block.type).toBe('instruction');
+    expect(block.tokenCount).toBe(5);
+  });
+});
+
 describe('AnalysisReport', () => {
   it('accepts empty report', () => {
     const report: AnalysisReport = {
+      path: '/tmp/test.md',
       blocks: [],
       issues: [],
-      tokenCount: 0,
+      totalBlocks: 0,
+      totalTokens: 0,
       createdAt: new Date(),
     };
     expect(report.issues).toHaveLength(0);
-    expect(report.tokenCount).toBe(0);
+    expect(report.totalTokens).toBe(0);
+    expect(report.path).toBe('/tmp/test.md');
   });
 });
 
