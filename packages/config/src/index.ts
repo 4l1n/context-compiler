@@ -7,6 +7,7 @@ export type {
   OptimizeTransformThresholds,
   ContextCompilerConfig,
   ContextCompilerConfigInput,
+  ConfigValidationOptions,
 } from './types.js';
 export { defaultConfig, resolveConfig } from './types.js';
 

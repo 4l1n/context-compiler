@@ -29,6 +29,7 @@ export type {
 } from './transforms/index.js';
 export {
   DEFAULT_TRANSFORMS,
+  KNOWN_TRANSFORM_IDS,
   buildTransforms,
   removeExactDuplicates,
   collapseFormattingRules,

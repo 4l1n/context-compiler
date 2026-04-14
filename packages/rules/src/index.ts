@@ -31,6 +31,8 @@ export const DEFAULT_RULES: IRule[] = [
   noisyToolOutput,
 ];
 
+export const KNOWN_RULE_IDS: readonly string[] = DEFAULT_RULES.map(rule => rule.id);
+
 export type RuleBuildOptions = {
   enabledRuleIds?: string[];
   disabledRuleIds?: string[];
@@ -41,6 +43,9 @@ export type RuleBuildOptions = {
 };
 
 export function buildRules(options: RuleBuildOptions = {}): IRule[] {
+  assertKnownIds(options.enabledRuleIds ?? [], 'enabledRuleIds');
+  assertKnownIds(options.disabledRuleIds ?? [], 'disabledRuleIds');
+
   const oversizedExamples = createOversizedExampleSectionRule(
     options.thresholds?.oversizedExampleRatio,
   );
@@ -61,4 +66,12 @@ export function buildRules(options: RuleBuildOptions = {}): IRule[] {
     if (disabled.has(rule.id)) return false;
     return true;
   });
+}
+
+function assertKnownIds(ids: string[], key: string): void {
+  const known = new Set(KNOWN_RULE_IDS);
+  const unknown = ids.filter(id => !known.has(id));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown lint rule id in ${key}: ${unknown.join(', ')}`);
+  }
 }

@@ -54,6 +54,11 @@ type DeepPartial<T> = {
 
 export type ContextCompilerConfigInput = DeepPartial<ContextCompilerConfig>;
 
+export type ConfigValidationOptions = {
+  knownRuleIds?: readonly string[];
+  knownTransformIds?: readonly string[];
+};
+
 export const defaultConfig: ContextCompilerConfig = {
   tokenizer: {
     default: 'char',
@@ -89,7 +94,10 @@ export const defaultConfig: ContextCompilerConfig = {
   },
 };
 
-export function resolveConfig(input: ContextCompilerConfigInput = {}): ContextCompilerConfig {
+export function resolveConfig(
+  input: ContextCompilerConfigInput = {},
+  validation: ConfigValidationOptions = {},
+): ContextCompilerConfig {
   const merged: ContextCompilerConfig = {
     tokenizer: {
       default: input.tokenizer?.default ?? defaultConfig.tokenizer.default,
@@ -132,6 +140,18 @@ export function resolveConfig(input: ContextCompilerConfigInput = {}): ContextCo
   };
 
   assertConfig(merged);
+  assertKnownIds(merged.lint.rules.enabled, validation.knownRuleIds, 'config.lint.rules.enabled');
+  assertKnownIds(merged.lint.rules.disabled, validation.knownRuleIds, 'config.lint.rules.disabled');
+  assertKnownIds(
+    merged.optimize.transforms.enabled,
+    validation.knownTransformIds,
+    'config.optimize.transforms.enabled',
+  );
+  assertKnownIds(
+    merged.optimize.transforms.disabled,
+    validation.knownTransformIds,
+    'config.optimize.transforms.disabled',
+  );
   return merged;
 }
 
@@ -185,5 +205,15 @@ function assertPercent(value: number, key: string): void {
 function assertStringArray(value: string[], key: string): void {
   if (!Array.isArray(value) || value.some(v => typeof v !== 'string')) {
     throw new Error(`${key} must be an array of strings`);
+  }
+}
+
+function assertKnownIds(ids: string[], knownIds: readonly string[] | undefined, key: string): void {
+  if (!knownIds) return;
+
+  const known = new Set(knownIds);
+  const unknown = ids.filter(id => !known.has(id));
+  if (unknown.length > 0) {
+    throw new Error(`${key} contains unknown id${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}`);
   }
 }

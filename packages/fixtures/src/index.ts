@@ -163,6 +163,107 @@ The current prompt has no duplicate blocks, no oversized examples, and no noisy 
 `.trim(),
 };
 
+export const fixtureHardeningKitchenSink: PromptFixture = {
+  id: 'hardening-kitchen-sink',
+  description: 'Mixed realistic context with duplicate constraints, noisy logs, examples, and memory.',
+  expectsOptimizeChanges: true,
+  content: `
+# System
+You are an assistant for repository maintenance.
+Use markdown.
+Be concise.
+
+# Constraints
+Do not invent behavior that is not in the repository.
+Prefer deterministic output.
+Use markdown.
+Be concise.
+
+# Context
+The current phase is hardening v1.
+The implementation must stay local-only and deterministic.
+No AI rewriting, plugins, integrations, frontend, or large refactors are in scope.
+
+# Constraints
+Do not invent behavior that is not in the repository.
+Prefer deterministic output.
+Use markdown.
+Be concise.
+
+# Memory
+2026-04-01: Stabilize v1 completed with config-driven rules and transforms.
+2026-04-05: README claims should be backed by tests or benchmark output.
+Remember: optimize must explain every remove or replace change.
+
+# Investigation
+Use this command output to identify any hardening risk.
+
+\`\`\`bash
+task 001 build package core alpha beta gamma delta epsilon zeta eta theta
+task 002 build package rules alpha beta gamma delta epsilon zeta eta theta
+task 003 build package config alpha beta gamma delta epsilon zeta eta theta
+task 004 build package tokenizers alpha beta gamma delta epsilon zeta eta theta
+task 005 test parser alpha beta gamma delta epsilon zeta eta theta
+task 006 test analyzer alpha beta gamma delta epsilon zeta eta theta
+task 007 test optimizer alpha beta gamma delta epsilon zeta eta theta
+task 008 test cli alpha beta gamma delta epsilon zeta eta theta
+warning: fixture snapshot drift detected in local summary
+task 010 lint rules alpha beta gamma delta epsilon zeta eta theta
+task 011 lint transforms alpha beta gamma delta epsilon zeta eta theta
+task 012 lint config alpha beta gamma delta epsilon zeta eta theta
+task 013 typecheck workspace alpha beta gamma delta epsilon zeta eta theta
+task 014 benchmark fixtures alpha beta gamma delta epsilon zeta eta theta
+error: unknown transform id ignored by config filter
+task 016 rerun config tests alpha beta gamma delta epsilon zeta eta theta
+task 017 verify idempotency alpha beta gamma delta epsilon zeta eta theta
+task 018 verify docs alpha beta gamma delta epsilon zeta eta theta
+task 019 prepare summary alpha beta gamma delta epsilon zeta eta theta
+task 020 done alpha beta gamma delta epsilon zeta eta theta
+task 021 archive alpha beta gamma delta epsilon zeta eta theta
+task 022 close alpha beta gamma delta epsilon zeta eta theta
+\`\`\`
+
+# Examples
+Example 1: Keep analysis summaries stable and deterministic.
+Example 2: Keep optimize changes explicit and explainable.
+Example 3: Keep benchmarks local and repeatable.
+Example 4: Keep config validation strict for unknown IDs.
+Example 5: Keep fixtures realistic but compact.
+Example 6: Keep README claims tied to commands.
+Example 7: Keep tests focused on behavior, not implementation detail.
+Example 8: Keep scope limited to hardening v1.
+`.trim(),
+};
+
+export const fixtureStructuredNoopContext: PromptFixture = {
+  id: 'structured-noop-context',
+  description: 'Structured JSON and table context expected to remain unchanged by optimize v1.',
+  expectsOptimizeChanges: false,
+  content: `
+{
+  "project": "context-compiler",
+  "phase": "hardening-v1",
+  "constraints": [
+    "local-only",
+    "no-ai",
+    "no-plugins",
+    "no-frontend"
+  ],
+  "evidence": {
+    "tests": ["golden", "idempotency", "config-validation"],
+    "benchmark": "local fixture loop"
+  }
+}
+
+| command | purpose | expected |
+|---|---|---|
+| pnpm test | run unit and golden tests | pass |
+| pnpm typecheck | validate TypeScript | pass |
+| pnpm build | compile packages | pass |
+| pnpm benchmark | measure fixture pipeline | report metrics |
+`.trim(),
+};
+
 export const promptFixtures: PromptFixture[] = [
   fixtureLongPromptWithDuplicates,
   fixtureLargeToolOutput,
@@ -170,6 +271,8 @@ export const promptFixtures: PromptFixture[] = [
   fixtureOversizedExamples,
   fixturePersistentMemory,
   fixtureOptimizeNoOp,
+  fixtureHardeningKitchenSink,
+  fixtureStructuredNoopContext,
 ];
 
 export const promptFixturesById: Record<string, PromptFixture> = Object.fromEntries(

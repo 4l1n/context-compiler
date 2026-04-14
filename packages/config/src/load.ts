@@ -2,11 +2,11 @@ import { access, readFile } from 'node:fs/promises';
 import { constants as FS_CONSTANTS } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { defaultConfig, resolveConfig } from './types.js';
-import type { ContextCompilerConfig, ContextCompilerConfigInput } from './types.js';
+import type { ConfigValidationOptions, ContextCompilerConfig, ContextCompilerConfigInput } from './types.js';
 
 export const DEFAULT_CONFIG_FILENAME = 'context-compiler.config.json';
 
-export type LoadConfigOptions = {
+export type LoadConfigOptions = ConfigValidationOptions & {
   cwd?: string;
   configPath?: string;
 };
@@ -22,20 +22,24 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Conte
 
   if (options.configPath) {
     const explicitPath = resolveConfigPath(cwd, options.configPath);
-    return readAndResolveConfig(explicitPath, true);
+    return readAndResolveConfig(explicitPath, true, options);
   }
 
   const defaultPath = resolve(cwd, DEFAULT_CONFIG_FILENAME);
   const exists = await fileExists(defaultPath);
   if (!exists) return defaultConfig;
-  return readAndResolveConfig(defaultPath, false);
+  return readAndResolveConfig(defaultPath, false, options);
 }
 
 function resolveConfigPath(cwd: string, configPath: string): string {
   return isAbsolute(configPath) ? configPath : resolve(cwd, configPath);
 }
 
-async function readAndResolveConfig(path: string, required: boolean): Promise<ContextCompilerConfig> {
+async function readAndResolveConfig(
+  path: string,
+  required: boolean,
+  validation: ConfigValidationOptions,
+): Promise<ContextCompilerConfig> {
   if (!(await fileExists(path))) {
     if (required) throw new Error(`Config file not found: ${path}`);
     return defaultConfig;
@@ -54,7 +58,7 @@ async function readAndResolveConfig(path: string, required: boolean): Promise<Co
   }
 
   try {
-    return resolveConfig(parsed as ContextCompilerConfigInput);
+    return resolveConfig(parsed as ContextCompilerConfigInput, validation);
   } catch (error) {
     throw new Error(`Invalid config in ${path}: ${messageOf(error)}`);
   }

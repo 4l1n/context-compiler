@@ -25,6 +25,8 @@ export const DEFAULT_TRANSFORMS: ITransform[] = [
   trimOversizedExamples,
 ];
 
+export const KNOWN_TRANSFORM_IDS: readonly string[] = DEFAULT_TRANSFORMS.map(transform => transform.id);
+
 export type TransformBuildOptions = {
   enabledTransformIds?: string[];
   disabledTransformIds?: string[];
@@ -35,6 +37,9 @@ export type TransformBuildOptions = {
 };
 
 export function buildTransforms(options: TransformBuildOptions = {}): ITransform[] {
+  assertKnownIds(options.enabledTransformIds ?? [], 'enabledTransformIds');
+  assertKnownIds(options.disabledTransformIds ?? [], 'disabledTransformIds');
+
   const truncateTransform = createTruncateToolOutput({
     tokenThreshold: options.thresholds?.truncateToolOutputTokens,
   });
@@ -57,4 +62,12 @@ export function buildTransforms(options: TransformBuildOptions = {}): ITransform
     if (disabled.has(transform.id)) return false;
     return true;
   });
+}
+
+function assertKnownIds(ids: string[], key: string): void {
+  const known = new Set(KNOWN_TRANSFORM_IDS);
+  const unknown = ids.filter(id => !known.has(id));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown optimize transform id in ${key}: ${unknown.join(', ')}`);
+  }
 }

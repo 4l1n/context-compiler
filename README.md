@@ -42,6 +42,7 @@ pnpm install
 pnpm build
 pnpm test
 pnpm typecheck
+pnpm benchmark
 ```
 
 ## Commands
@@ -171,4 +172,23 @@ Minimal example:
     }
   }
 }
+```
+
+## Evidence
+
+Current claims are backed by reproducible local checks:
+
+| Claim | Evidence |
+|---|---|
+| Analysis and optimize behavior are deterministic for current fixtures | `pnpm test` golden fixture summaries |
+| Optimize reaches a fixed point for current fixtures | `pnpm test` idempotency coverage |
+| Unknown configured rule and transform IDs fail loudly | `pnpm test` config and builder validation coverage |
+| Pipeline behavior can be measured locally | `pnpm benchmark` |
+
+The benchmark is a local measurement utility over repository fixtures.
+It is not a universal performance guarantee.
+
+```bash
+pnpm benchmark
+BENCH_ITERATIONS=50 pnpm benchmark
 ```

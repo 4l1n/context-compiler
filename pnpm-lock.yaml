@@ -57,6 +57,9 @@ importers:
 
   packages/core:
     devDependencies:
+      '@context-compiler/fixtures':
+        specifier: workspace:*
+        version: link:../fixtures
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.17
@@ -79,6 +82,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@context-compiler/fixtures':
+        specifier: workspace:*
+        version: link:../fixtures
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

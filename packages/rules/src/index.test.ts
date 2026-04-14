@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildRules, runLint } from './index.js';
+import { buildRules, KNOWN_RULE_IDS, runLint } from './index.js';
 import type { LintContext } from './types.js';
 import type { AnalyzedBlock } from '@context-compiler/core';
 
@@ -34,6 +34,7 @@ function context(blocks: AnalyzedBlock[], totalTokens: number): LintContext {
 describe('buildRules', () => {
   it('returns default rule order when no filters are provided', () => {
     const rules = buildRules();
+    expect(rules.map(r => r.id)).toEqual(KNOWN_RULE_IDS);
     expect(rules.map(r => r.id)).toEqual([
       'duplicated-instruction',
       'repeated-formatting-rules',
@@ -77,5 +78,21 @@ describe('buildRules', () => {
     const blocks = [exampleBlock('b1', 80), exampleBlock('b2', 10)];
     const result = runLint(rules, context(blocks, 100));
     expect(result.issues).toHaveLength(0);
+  });
+
+  it('throws on unknown enabled rule ids', () => {
+    expect(() =>
+      buildRules({
+        enabledRuleIds: ['missing-rule'],
+      }),
+    ).toThrow('Unknown lint rule id in enabledRuleIds: missing-rule');
+  });
+
+  it('throws on unknown disabled rule ids', () => {
+    expect(() =>
+      buildRules({
+        disabledRuleIds: ['missing-rule'],
+      }),
+    ).toThrow('Unknown lint rule id in disabledRuleIds: missing-rule');
   });
 });

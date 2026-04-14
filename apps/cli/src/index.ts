@@ -3,8 +3,15 @@
 import { extname } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { loadConfig } from '@context-compiler/config';
-import { analyze, loadFile, buildReport, runOptimize, buildTransforms } from '@context-compiler/core';
-import { runLint, buildRules } from '@context-compiler/rules';
+import {
+  analyze,
+  loadFile,
+  buildReport,
+  runOptimize,
+  buildTransforms,
+  KNOWN_TRANSFORM_IDS,
+} from '@context-compiler/core';
+import { runLint, buildRules, KNOWN_RULE_IDS } from '@context-compiler/rules';
 import { CharTokenizer } from '@context-compiler/tokenizers';
 import { renderText, renderJson } from './render.js';
 import { renderLintText, renderLintJson } from './render-lint.js';
@@ -45,7 +52,11 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
       process.exit(1);
     }
 
-    const config = await loadConfig({ configPath: parsed.options.get('config') });
+    const config = await loadConfig({
+      configPath: parsed.options.get('config'),
+      knownRuleIds: KNOWN_RULE_IDS,
+      knownTransformIds: KNOWN_TRANSFORM_IDS,
+    });
     const tokenizer = createTokenizer(config.tokenizer.char.charsPerToken);
     const report = await analyze(file, tokenizer, {
       warningThresholds: config.lint.warnings,
@@ -68,7 +79,11 @@ async function cmdLint(argv: string[]): Promise<void> {
       process.exit(1);
     }
 
-    const config = await loadConfig({ configPath: parsed.options.get('config') });
+    const config = await loadConfig({
+      configPath: parsed.options.get('config'),
+      knownRuleIds: KNOWN_RULE_IDS,
+      knownTransformIds: KNOWN_TRANSFORM_IDS,
+    });
     const tokenizer = createTokenizer(config.tokenizer.char.charsPerToken);
     const report = await analyze(file, tokenizer, {
       warningThresholds: config.lint.warnings,
@@ -109,7 +124,11 @@ async function cmdOptimize(argv: string[]): Promise<void> {
       process.exit(1);
     }
 
-    const config = await loadConfig({ configPath: parsed.options.get('config') });
+    const config = await loadConfig({
+      configPath: parsed.options.get('config'),
+      knownRuleIds: KNOWN_RULE_IDS,
+      knownTransformIds: KNOWN_TRANSFORM_IDS,
+    });
     const tokenizer = createTokenizer(config.tokenizer.char.charsPerToken);
     const ext = extname(file).toLowerCase();
     const content = await loadFile(file);

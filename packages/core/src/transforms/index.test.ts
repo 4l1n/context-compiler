@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildTransforms } from './index.js';
+import { buildTransforms, KNOWN_TRANSFORM_IDS } from './index.js';
 import type { AnalyzedBlock, ITokenizer } from '../types.js';
 
 const tok: ITokenizer = {
@@ -24,6 +24,7 @@ function toolOutputBlock(id: string, lineCount: number): AnalyzedBlock {
 describe('buildTransforms', () => {
   it('returns default transform order when no filters are provided', () => {
     const transforms = buildTransforms();
+    expect(transforms.map(t => t.id)).toEqual(KNOWN_TRANSFORM_IDS);
     expect(transforms.map(t => t.id)).toEqual([
       'remove-exact-duplicates',
       'collapse-formatting-rules',
@@ -64,5 +65,21 @@ describe('buildTransforms', () => {
       tokenizer: tok,
     });
     expect(result?.changes).toHaveLength(0);
+  });
+
+  it('throws on unknown enabled transform ids', () => {
+    expect(() =>
+      buildTransforms({
+        enabledTransformIds: ['missing-transform'],
+      }),
+    ).toThrow('Unknown optimize transform id in enabledTransformIds: missing-transform');
+  });
+
+  it('throws on unknown disabled transform ids', () => {
+    expect(() =>
+      buildTransforms({
+        disabledTransformIds: ['missing-transform'],
+      }),
+    ).toThrow('Unknown optimize transform id in disabledTransformIds: missing-transform');
   });
 });

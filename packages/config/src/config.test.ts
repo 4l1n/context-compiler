@@ -22,6 +22,28 @@ describe('resolveConfig', () => {
       }),
     ).toThrow();
   });
+
+  it('throws on unknown lint rule ids when known ids are provided', () => {
+    expect(() =>
+      resolveConfig(
+        {
+          lint: { rules: { enabled: ['missing-rule'] } },
+        },
+        { knownRuleIds: ['known-rule'] },
+      ),
+    ).toThrow('config.lint.rules.enabled contains unknown id: missing-rule');
+  });
+
+  it('throws on unknown optimize transform ids when known ids are provided', () => {
+    expect(() =>
+      resolveConfig(
+        {
+          optimize: { transforms: { disabled: ['missing-transform'] } },
+        },
+        { knownTransformIds: ['known-transform'] },
+      ),
+    ).toThrow('config.optimize.transforms.disabled contains unknown id: missing-transform');
+  });
 });
 
 describe('loadConfig', () => {
@@ -54,6 +76,52 @@ describe('loadConfig', () => {
       expect(config.optimize.thresholds.truncateToolOutputTokens).toBe(
         defaultConfig.optimize.thresholds.truncateToolOutputTokens,
       );
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('loads config when configured ids are known', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'context-compiler-config-'));
+    const path = join(cwd, 'custom-config.json');
+    try {
+      await writeFile(
+        path,
+        JSON.stringify({
+          lint: { rules: { enabled: ['known-rule'] } },
+          optimize: { transforms: { disabled: ['known-transform'] } },
+        }),
+      );
+      const config = await loadConfig({
+        cwd,
+        configPath: path,
+        knownRuleIds: ['known-rule'],
+        knownTransformIds: ['known-transform'],
+      });
+      expect(config.lint.rules.enabled).toEqual(['known-rule']);
+      expect(config.optimize.transforms.disabled).toEqual(['known-transform']);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('throws for unknown ids in loaded config', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'context-compiler-config-'));
+    const path = join(cwd, 'custom-config.json');
+    try {
+      await writeFile(
+        path,
+        JSON.stringify({
+          lint: { rules: { disabled: ['missing-rule'] } },
+        }),
+      );
+      await expect(
+        loadConfig({
+          cwd,
+          configPath: path,
+          knownRuleIds: ['known-rule'],
+        }),
+      ).rejects.toThrow('Invalid config');
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }
