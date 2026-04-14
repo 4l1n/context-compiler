@@ -43,6 +43,15 @@ describe('renderOptimizeText', () => {
     expect(out).toContain('File not written');
   });
 
+  it('does not suggest --write for non-file input', () => {
+    const out = renderOptimizeText(
+      { ...baseResult, path: '<text>' },
+      { dryRun: true, canWrite: false },
+    );
+    expect(out).toContain('File not written.');
+    expect(out).not.toContain('Use --write');
+  });
+
   it('shows written status after --write succeeds', () => {
     const out = renderOptimizeText(baseResult, { wroteFile: true });
     expect(out).toContain('File written: /tmp/prompt.md');

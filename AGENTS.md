@@ -14,10 +14,12 @@ pnpm benchmark
 pnpm verify
 
 # CLI after build
-pnpm cli help
-pnpm cli analyze examples/basic-prompt.md
-pnpm cli lint examples/basic-prompt.md
-pnpm cli optimize examples/basic-prompt.md --dry-run
+pnpm cc help
+pnpm cc analyze examples/basic-prompt.md
+pnpm cc analyze --text "Be concise. Be concise."
+echo "Be concise. Be concise." | pnpm cc analyze --stdin
+pnpm cc lint examples/basic-prompt.md
+pnpm cc optimize examples/basic-prompt.md --dry-run
 
 # Single package
 pnpm --filter @context-compiler/core build

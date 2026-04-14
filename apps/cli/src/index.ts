@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 
-import { extname } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { loadConfig } from '@context-compiler/config';
 import {
-  analyze,
-  loadFile,
   buildReport,
   runOptimize,
   buildTransforms,
@@ -16,6 +13,7 @@ import { CharTokenizer } from '@context-compiler/tokenizers';
 import { renderText, renderJson } from './render.js';
 import { renderLintText, renderLintJson } from './render-lint.js';
 import { renderOptimizeText, renderOptimizeJson } from './render-optimize.js';
+import { isPathInput, resolveCliInput } from './input.js';
 
 const [, , command = 'help', ...args] = process.argv;
 
@@ -26,14 +24,16 @@ Usage:
   context-compiler <command> [options]
 
 Commands:
-  analyze  <file>   Structural analysis: blocks, tokens, warnings
-  lint     <file>   Lint rules: detect issues in prompt structure
-  optimize <file>   Apply safe deterministic transforms to reduce tokens
+  analyze  <input>  Structural analysis: blocks, tokens, warnings
+  lint     <input>  Lint rules: detect issues in prompt structure
+  optimize <input>  Apply safe deterministic transforms to reduce tokens
   help              Show this help
 
 Options:
   --json       Output as JSON
   --config     Path to config JSON file
+  --text       Use raw text input instead of a file path
+  --stdin      Read input from stdin instead of a file path
   --dry-run    Show what would change without writing (optimize only)
   --write      Write optimized content back to the file (optimize only)
 
@@ -44,13 +44,11 @@ Version: 0.1.0
 async function cmdAnalyze(argv: string[]): Promise<void> {
   try {
     const parsed = parseArgs(argv);
-    const file = parsed.positionals[0];
     const jsonFlag = parsed.flags.has('json');
-
-    if (!file) {
-      console.error('error: missing file argument\n  usage: context-compiler analyze <file> [--json] [--config <path>]');
-      process.exit(1);
-    }
+    const input = await resolveCliInput(parsed, {
+      command: 'analyze',
+      usage: usageFor('analyze'),
+    });
 
     const config = await loadConfig({
       configPath: parsed.options.get('config'),
@@ -58,7 +56,7 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
     const tokenizer = createTokenizer(config.tokenizer.char.charsPerToken);
-    const report = await analyze(file, tokenizer, {
+    const report = buildReport(input.path, input.content, input.ext, tokenizer, {
       warningThresholds: config.lint.warnings,
     });
     console.log(jsonFlag ? renderJson(report) : renderText(report));
@@ -71,13 +69,11 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
 async function cmdLint(argv: string[]): Promise<void> {
   try {
     const parsed = parseArgs(argv);
-    const file = parsed.positionals[0];
     const jsonFlag = parsed.flags.has('json');
-
-    if (!file) {
-      console.error('error: missing file argument\n  usage: context-compiler lint <file> [--json] [--config <path>]');
-      process.exit(1);
-    }
+    const input = await resolveCliInput(parsed, {
+      command: 'lint',
+      usage: usageFor('lint'),
+    });
 
     const config = await loadConfig({
       configPath: parsed.options.get('config'),
@@ -85,7 +81,7 @@ async function cmdLint(argv: string[]): Promise<void> {
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
     const tokenizer = createTokenizer(config.tokenizer.char.charsPerToken);
-    const report = await analyze(file, tokenizer, {
+    const report = buildReport(input.path, input.content, input.ext, tokenizer, {
       warningThresholds: config.lint.warnings,
     });
     const rules = buildRules({
@@ -111,17 +107,17 @@ async function cmdLint(argv: string[]): Promise<void> {
 async function cmdOptimize(argv: string[]): Promise<void> {
   try {
     const parsed = parseArgs(argv);
-    const file = parsed.positionals[0];
     const jsonFlag = parsed.flags.has('json');
     const dryRun = parsed.flags.has('dry-run');
     const write = parsed.flags.has('write');
     const shouldWrite = write && !dryRun;
+    const input = await resolveCliInput(parsed, {
+      command: 'optimize',
+      usage: usageFor('optimize'),
+    });
 
-    if (!file) {
-      console.error(
-        'error: missing file argument\n  usage: context-compiler optimize <file> [--dry-run] [--write] [--json] [--config <path>]',
-      );
-      process.exit(1);
+    if (write && !isPathInput(input)) {
+      throw new Error('--write requires path input');
     }
 
     const config = await loadConfig({
@@ -130,9 +126,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
     const tokenizer = createTokenizer(config.tokenizer.char.charsPerToken);
-    const ext = extname(file).toLowerCase();
-    const content = await loadFile(file);
-    const report = buildReport(file, content, ext, tokenizer, {
+    const report = buildReport(input.path, input.content, input.ext, tokenizer, {
       warningThresholds: config.lint.warnings,
     });
     const transforms = buildTransforms({
@@ -143,17 +137,23 @@ async function cmdOptimize(argv: string[]): Promise<void> {
         trimOversizedExamplesPercent: config.optimize.thresholds.trimOversizedExamplesPercent,
       },
     });
-    const result = runOptimize(file, content, report, transforms, tokenizer);
+    const result = runOptimize(input.path, input.content, report, transforms, tokenizer);
     const wroteFile = shouldWrite && result.appliedChanges.length > 0;
 
     if (wroteFile) {
-      await writeFile(file, result.optimizedContent, 'utf8');
+      await writeFile(input.path, result.optimizedContent, 'utf8');
     }
 
     if (jsonFlag) {
       console.log(renderOptimizeJson(result));
     } else {
-      console.log(renderOptimizeText(result, { dryRun: !wroteFile, wroteFile }));
+      console.log(
+        renderOptimizeText(result, {
+          dryRun: !wroteFile,
+          wroteFile,
+          canWrite: isPathInput(input),
+        }),
+      );
     }
   } catch (err) {
     console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
@@ -214,10 +214,10 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
 
     const key = arg.slice(2);
-    if (key === 'config') {
+    if (key === 'config' || key === 'text') {
       const value = argv[i + 1];
-      if (!value || value.startsWith('--')) {
-        throw new Error('missing value for --config');
+      if (value === undefined || value.startsWith('--')) {
+        throw new Error(`missing value for --${key}`);
       }
       options.set(key, value);
       i++;
@@ -228,4 +228,10 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
 
   return { flags, options, positionals };
+}
+
+function usageFor(command: 'analyze' | 'lint' | 'optimize'): string {
+  const base = `context-compiler ${command} <file> [--text <text>] [--stdin] [--json] [--config <path>]`;
+  if (command !== 'optimize') return base;
+  return `${base} [--dry-run] [--write]`;
 }

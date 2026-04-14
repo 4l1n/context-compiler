@@ -30,39 +30,53 @@ cd context-compiler
 pnpm install
 pnpm build
 
-pnpm cli help
-pnpm cli analyze examples/basic-prompt.md
-pnpm cli lint examples/basic-prompt.md
-pnpm cli optimize examples/basic-prompt.md --dry-run
+pnpm cc help
+pnpm cc analyze examples/basic-prompt.md
+pnpm cc lint examples/basic-prompt.md
+pnpm cc optimize examples/basic-prompt.md --dry-run
 ```
 
 `optimize` does not write by default. Use `--write` only when you want to replace the input file.
 
 ```bash
-pnpm cli optimize examples/basic-prompt.md --write
+pnpm cc optimize examples/basic-prompt.md --write
 ```
 
 ## Commands
 
 ```bash
-pnpm cli analyze <file> [--json] [--config <path>]
-pnpm cli lint <file> [--json] [--config <path>]
-pnpm cli optimize <file> [--dry-run] [--write] [--json] [--config <path>]
+pnpm cc analyze <file> [--json] [--config <path>]
+pnpm cc analyze --text "<raw content>" [--json] [--config <path>]
+pnpm cc analyze --stdin [--json] [--config <path>]
+
+pnpm cc lint <file> [--json] [--config <path>]
+pnpm cc lint --text "<raw content>" [--json] [--config <path>]
+pnpm cc lint --stdin [--json] [--config <path>]
+
+pnpm cc optimize <file> [--dry-run] [--write] [--json] [--config <path>]
+pnpm cc optimize --text "<raw content>" [--dry-run] [--json] [--config <path>]
+pnpm cc optimize --stdin [--dry-run] [--json] [--config <path>]
 ```
 
 You can also run the built CLI directly:
 
 ```bash
+pnpm cli analyze examples/basic-prompt.md
 node apps/cli/dist/index.js analyze examples/basic-prompt.md
 ```
+
+Input modes are explicit. A positional argument is always treated as a file path.
+Raw text must use `--text`, and piped input must use `--stdin`.
 
 ## Analyze
 
 `analyze` returns block structure, block types, approximate token counts, token percentages, and heuristic warnings.
 
 ```bash
-pnpm cli analyze examples/basic-prompt.md
-pnpm cli analyze examples/basic-prompt.md --json
+pnpm cc analyze examples/basic-prompt.md
+pnpm cc analyze --text "Be concise. Be concise."
+echo "Be concise. Be concise." | pnpm cc analyze --stdin
+pnpm cc analyze examples/basic-prompt.md --json
 ```
 
 ## Lint
@@ -77,8 +91,10 @@ Current rules:
 - `noisy-tool-output`
 
 ```bash
-pnpm cli lint examples/basic-prompt.md
-pnpm cli lint examples/basic-prompt.md --json
+pnpm cc lint examples/basic-prompt.md
+pnpm cc lint --text "Be concise. Be concise."
+echo "Be concise. Be concise." | pnpm cc lint --stdin
+pnpm cc lint examples/basic-prompt.md --json
 ```
 
 ## Optimize
@@ -95,19 +111,21 @@ Current transforms:
 Preview changes:
 
 ```bash
-pnpm cli optimize examples/basic-prompt.md --dry-run
+pnpm cc optimize examples/basic-prompt.md --dry-run
+pnpm cc optimize --text "Be concise. Be concise." --dry-run
+echo "Be concise. Be concise." | pnpm cc optimize --stdin --dry-run
 ```
 
 Write changes:
 
 ```bash
-pnpm cli optimize examples/basic-prompt.md --write
+pnpm cc optimize examples/basic-prompt.md --write
 ```
 
 Machine-readable output:
 
 ```bash
-pnpm cli optimize examples/basic-prompt.md --dry-run --json
+pnpm cc optimize examples/basic-prompt.md --dry-run --json
 ```
 
 ## Configuration
@@ -116,8 +134,8 @@ By default, the CLI looks for `context-compiler.config.json` in the current work
 You can also pass an explicit config path.
 
 ```bash
-pnpm cli lint examples/basic-prompt.md --config examples/context-compiler.config.json
-pnpm cli optimize examples/basic-prompt.md --dry-run --config examples/context-compiler.config.json
+pnpm cc lint examples/basic-prompt.md --config examples/context-compiler.config.json
+pnpm cc optimize examples/basic-prompt.md --dry-run --config examples/context-compiler.config.json
 ```
 
 Minimal config shape:
@@ -215,7 +233,7 @@ Current limitations:
 - Packages remain private and are not prepared for npm publishing.
 - Token counts use the placeholder char tokenizer.
 - Classification, linting, and optimization are heuristic and deterministic.
-- Only local file workflows are supported.
+- Local file, raw text, and stdin workflows are supported.
 
 ## License
 

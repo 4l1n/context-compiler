@@ -5,6 +5,7 @@ const HR = '─'.repeat(52);
 export type OptimizeRenderOptions = {
   dryRun?: boolean;
   wroteFile?: boolean;
+  canWrite?: boolean;
 };
 
 /**
@@ -46,7 +47,7 @@ export function renderOptimizeText(
   if (options.wroteFile) {
     lines.push(`File written: ${result.path}`);
   } else if (options.dryRun) {
-    lines.push('File not written. Use --write to apply changes.');
+    lines.push(options.canWrite === false ? 'File not written.' : 'File not written. Use --write to apply changes.');
   }
 
   lines.push('');
