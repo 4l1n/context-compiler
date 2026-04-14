@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@context-compiler/core": "workspace:*",
+    "@context-compiler/rules": "workspace:*",
     "@context-compiler/tokenizers": "workspace:*"
   },
   "devDependencies": {
