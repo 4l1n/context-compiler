@@ -8,6 +8,7 @@ export type {
   AnalysisReport,
   ChangeType,
   OptimizationChange,
+  OptimizationResult,
   ITokenizer,
 } from './types.js';
 
@@ -17,3 +18,14 @@ export type { RawBlock } from './parser.js';
 export { classifyBlock } from './classifier.js';
 export { checkWarnings, WARN_THRESHOLDS } from './warnings.js';
 export { buildReport, analyze } from './analyzer.js';
+export { runOptimize } from './optimizer.js';
+export type { ITransform, TransformContext, TransformResult } from './transforms/index.js';
+export {
+  DEFAULT_TRANSFORMS,
+  removeExactDuplicates,
+  collapseFormattingRules,
+  truncateToolOutput,
+  trimOversizedExamples,
+  TOOL_OUTPUT_TOKEN_THRESHOLD,
+  EXAMPLE_MAX_PERCENT,
+} from './transforms/index.js';

@@ -56,15 +56,30 @@ export type AnalysisReport = {
 
 // --- Optimization ---
 
-export type ChangeType = 'replace' | 'remove' | 'reorder';
+export type ChangeType = 'replace' | 'remove';
 
 export type OptimizationChange = {
   type: ChangeType;
-  blockId: string;
+  transformId: string;
+  /** All blocks involved in this change (may be >1 for cross-block transforms). */
+  blockIds: string[];
+  /** The block whose before/after content is shown (first affected block if multiple). */
+  primaryBlockId?: string;
   before: string;
-  after?: string;
+  after?: string;     // undefined when type === 'remove'
   reason: string;
-  tokenDelta: number;
+  tokenDelta: number; // negative = savings; not guaranteed to be negative
+};
+
+export type OptimizationResult = {
+  path: string;
+  originalContent: string;
+  optimizedContent: string;
+  originalTokens: number;
+  optimizedTokens: number;
+  /** originalTokens − optimizedTokens. Can be negative. */
+  tokenSavings: number;
+  appliedChanges: OptimizationChange[];
 };
 
 // --- Tokenizer interface (implemented by @context-compiler/tokenizers) ---

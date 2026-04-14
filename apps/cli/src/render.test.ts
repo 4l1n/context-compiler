@@ -72,8 +72,36 @@ describe('renderText', () => {
     };
     const output = renderText(reportWithIssue);
     expect(output).toContain('Warnings');
+    expect(output).toContain('block-too-long');
     expect(output).toContain('Block is 600 tokens');
     expect(output).toContain('[block-1]');
+  });
+
+  it('shows ruleId on first line and message on second line', () => {
+    const reportWithIssue: AnalysisReport = {
+      ...baseReport,
+      issues: [{ ruleId: 'block-too-long', severity: 'warning', message: 'Block is 600 tokens', blockId: 'block-1' }],
+    };
+    const out = renderText(reportWithIssue);
+    const ruleIdx = out.indexOf('block-too-long');
+    const msgIdx = out.indexOf('Block is 600 tokens');
+    expect(ruleIdx).toBeLessThan(msgIdx);
+  });
+
+  it('renders suggestion with → prefix when present', () => {
+    const reportWithSuggestion: AnalysisReport = {
+      ...baseReport,
+      issues: [{ ruleId: 'block-too-long', severity: 'warning', message: 'Block is long', suggestion: 'Trim it' }],
+    };
+    expect(renderText(reportWithSuggestion)).toContain('→ Trim it');
+  });
+
+  it('omits suggestion line when suggestion absent', () => {
+    const reportWithIssue: AnalysisReport = {
+      ...baseReport,
+      issues: [{ ruleId: 'block-too-long', severity: 'warning', message: 'Block is long' }],
+    };
+    expect(renderText(reportWithIssue)).not.toContain('→');
   });
 
   it('uses correct severity icons', () => {

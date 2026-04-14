@@ -37,7 +37,11 @@ export function renderText(report: AnalysisReport): string {
     for (const issue of report.issues) {
       const icon = SEVERITY_ICON[issue.severity] ?? '?';
       const loc = issue.blockId ? ` [${issue.blockId}]` : '';
-      lines.push(`  ${icon}${loc} ${issue.message}`);
+      lines.push(`  ${icon}${loc} ${issue.ruleId}`);
+      lines.push(`    ${issue.message}`);
+      if (issue.suggestion) {
+        lines.push(`    → ${issue.suggestion}`);
+      }
     }
   }
 

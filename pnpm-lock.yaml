@@ -23,6 +23,9 @@ importers:
       '@context-compiler/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@context-compiler/rules':
+        specifier: workspace:*
+        version: link:../../packages/rules
       '@context-compiler/tokenizers':
         specifier: workspace:*
         version: link:../../packages/tokenizers
@@ -74,6 +77,9 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.17)
 
   packages/tokenizers:
     devDependencies:
