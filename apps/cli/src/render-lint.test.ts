@@ -28,7 +28,7 @@ const issueResult: LintResult = {
   rulesRun: ['duplicated-instruction', 'noisy-tool-output'],
 };
 
-describe('renderLintText', () => {
+describe('renderLintText — header', () => {
   it('shows file path', () => {
     expect(renderLintText(baseReport, cleanResult)).toContain('/tmp/prompt.md');
   });
@@ -39,52 +39,105 @@ describe('renderLintText', () => {
     expect(out).toContain('noisy-tool-output');
   });
 
-  it('shows no-issues message when clean', () => {
-    expect(renderLintText(baseReport, cleanResult)).toContain('No issues found');
+  it('shows block and token counts', () => {
+    const out = renderLintText(baseReport, cleanResult);
+    expect(out).toContain('2');
+    expect(out).toContain('10');
+  });
+});
+
+describe('renderLintText — Analysis warnings section', () => {
+  it('shows "Analysis warnings (0)" when report has no issues', () => {
+    expect(renderLintText(baseReport, cleanResult)).toContain('Analysis warnings (0)');
   });
 
-  it('shows issue count in header', () => {
-    expect(renderLintText(baseReport, issueResult)).toContain('2 issues');
+  it('shows ✓ none when no analysis warnings', () => {
+    expect(renderLintText(baseReport, cleanResult)).toContain('✓ none');
   });
 
-  it('shows error icon for errors', () => {
-    expect(renderLintText(baseReport, issueResult)).toContain('✗');
-  });
-
-  it('shows warning icon for warnings', () => {
-    expect(renderLintText(baseReport, issueResult)).toContain('!');
-  });
-
-  it('shows block id in output', () => {
-    expect(renderLintText(baseReport, issueResult)).toContain('[block-2]');
-  });
-
-  it('shows issue message', () => {
-    expect(renderLintText(baseReport, issueResult)).toContain('Exact duplicate of block-1');
-  });
-
-  it('shows singular "1 issue" label', () => {
-    const singleIssue: LintResult = {
-      issues: [{ ruleId: 'test', severity: 'warning', message: 'one' }],
-      rulesRun: ['test'],
-    };
-    expect(renderLintText(baseReport, singleIssue)).toContain('1 issue');
-    expect(renderLintText(baseReport, singleIssue)).not.toContain('1 issues');
-  });
-
-  it('sorts errors before warnings', () => {
-    const out = renderLintText(baseReport, issueResult);
-    const errorPos = out.indexOf('✗');
-    const warnPos = out.indexOf('!');
-    expect(errorPos).toBeLessThan(warnPos);
-  });
-
-  it('marks analysis issues with (analysis) label', () => {
+  it('shows count when analysis warnings exist', () => {
     const reportWithIssue: AnalysisReport = {
       ...baseReport,
       issues: [{ ruleId: 'block-too-long', severity: 'warning', message: 'Block is long', blockId: 'block-1' }],
     };
-    expect(renderLintText(reportWithIssue, cleanResult)).toContain('(analysis)');
+    expect(renderLintText(reportWithIssue, cleanResult)).toContain('Analysis warnings (1)');
+  });
+
+  it('shows analysis issue message in its own section', () => {
+    const reportWithIssue: AnalysisReport = {
+      ...baseReport,
+      issues: [{ ruleId: 'block-too-long', severity: 'warning', message: 'Block is long' }],
+    };
+    const out = renderLintText(reportWithIssue, cleanResult);
+    const analysisIdx = out.indexOf('Analysis warnings');
+    const lintIdx = out.indexOf('Lint issues');
+    const msgIdx = out.indexOf('Block is long');
+    // message appears between the two section headers
+    expect(msgIdx).toBeGreaterThan(analysisIdx);
+    expect(msgIdx).toBeLessThan(lintIdx);
+  });
+});
+
+describe('renderLintText — Lint issues section', () => {
+  it('shows "Lint issues (0)" when no lint issues', () => {
+    expect(renderLintText(baseReport, cleanResult)).toContain('Lint issues (0)');
+  });
+
+  it('shows ✓ none when no lint issues', () => {
+    expect(renderLintText(baseReport, cleanResult)).toContain('✓ none');
+  });
+
+  it('shows count when lint issues exist', () => {
+    expect(renderLintText(baseReport, issueResult)).toContain('Lint issues (2)');
+  });
+
+  it('shows error icon for lint errors', () => {
+    expect(renderLintText(baseReport, issueResult)).toContain('✗');
+  });
+
+  it('shows warning icon for lint warnings', () => {
+    expect(renderLintText(baseReport, issueResult)).toContain('!');
+  });
+
+  it('shows block id in lint section', () => {
+    expect(renderLintText(baseReport, issueResult)).toContain('[block-2]');
+  });
+
+  it('shows lint issue message', () => {
+    expect(renderLintText(baseReport, issueResult)).toContain('Exact duplicate of block-1');
+  });
+
+  it('sorts errors before warnings within lint section', () => {
+    const out = renderLintText(baseReport, issueResult);
+    const lintIdx = out.indexOf('Lint issues');
+    const errorPos = out.indexOf('✗', lintIdx);
+    const warnPos = out.indexOf('!', lintIdx);
+    expect(errorPos).toBeLessThan(warnPos);
+  });
+
+  it('renders suggestion when present', () => {
+    const withSuggestion: LintResult = {
+      issues: [{ ruleId: 'test', severity: 'warning', message: 'Problem here', suggestion: 'Try this fix' }],
+      rulesRun: ['test'],
+    };
+    expect(renderLintText(baseReport, withSuggestion)).toContain('→ Try this fix');
+  });
+});
+
+describe('renderLintText — sections are independent', () => {
+  it('does not mix analysis and lint issues', () => {
+    const reportWithIssue: AnalysisReport = {
+      ...baseReport,
+      issues: [{ ruleId: 'analysis-rule', severity: 'info', message: 'analysis msg' }],
+    };
+    const out = renderLintText(reportWithIssue, issueResult);
+    const analysisIdx = out.indexOf('Analysis warnings');
+    const lintIdx = out.indexOf('Lint issues');
+    // analysis rule appears before lint section header
+    expect(out.indexOf('analysis msg')).toBeGreaterThan(analysisIdx);
+    expect(out.indexOf('analysis msg')).toBeLessThan(lintIdx);
+    // lint issue message appears after lint section header
+    expect(out.indexOf('Exact duplicate')).toBeGreaterThan(lintIdx);
   });
 });
 
@@ -98,7 +151,7 @@ describe('renderLintJson', () => {
     expect(parsed.rulesRun).toEqual(['duplicated-instruction', 'noisy-tool-output']);
   });
 
-  it('separates analysisIssues and lintIssues', () => {
+  it('has separate analysisIssues and lintIssues arrays', () => {
     const parsed = JSON.parse(renderLintJson(baseReport, issueResult)) as {
       analysisIssues: unknown[];
       lintIssues: unknown[];
@@ -107,8 +160,16 @@ describe('renderLintJson', () => {
     expect(Array.isArray(parsed.lintIssues)).toBe(true);
   });
 
-  it('includes allIssues as combined sorted list', () => {
-    const parsed = JSON.parse(renderLintJson(baseReport, issueResult)) as { allIssues: unknown[] };
-    expect(parsed.allIssues).toHaveLength(2);
+  it('does not include a merged allIssues field', () => {
+    const parsed = JSON.parse(renderLintJson(baseReport, issueResult)) as Record<string, unknown>;
+    expect(parsed['allIssues']).toBeUndefined();
+  });
+
+  it('lintIssues contains only lint issues', () => {
+    const parsed = JSON.parse(renderLintJson(baseReport, issueResult)) as {
+      lintIssues: Array<{ ruleId: string }>;
+    };
+    expect(parsed.lintIssues).toHaveLength(2);
+    expect(parsed.lintIssues.every(i => ['duplicated-instruction', 'noisy-tool-output'].includes(i.ruleId))).toBe(true);
   });
 });

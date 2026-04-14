@@ -37,6 +37,10 @@ export type AnalysisIssue = {
   message: string;
   blockId?: string;
   position?: { start: number; end: number };
+  /** Optional human-readable fix hint shown in CLI output. */
+  suggestion?: string;
+  /** Arbitrary rule-specific data for programmatic consumers. */
+  metadata?: Record<string, unknown>;
 };
 
 // --- Report ---

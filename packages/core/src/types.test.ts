@@ -23,6 +23,20 @@ describe('PromptBlock', () => {
   });
 });
 
+describe('AnalysisIssue', () => {
+  it('accepts optional suggestion and metadata', () => {
+    const issue = {
+      ruleId: 'test-rule',
+      severity: 'warning' as const,
+      message: 'Something is wrong',
+      suggestion: 'Try this instead',
+      metadata: { tokenCount: 42, blockIds: ['b1', 'b2'] },
+    };
+    expect(issue.suggestion).toBe('Try this instead');
+    expect(issue.metadata?.['tokenCount']).toBe(42);
+  });
+});
+
 describe('AnalyzedBlock', () => {
   it('accepts valid analyzed block', () => {
     const block: AnalyzedBlock = {

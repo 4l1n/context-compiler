@@ -9,31 +9,36 @@ const SEVERITY_ICON: Record<string, string> = {
 
 /**
  * Human-readable terminal output for the lint command.
- * Shows analysis warnings + lint issues combined, sorted by severity.
+ * Analysis warnings and lint issues are shown as distinct labeled sections.
  */
 export function renderLintText(report: AnalysisReport, result: LintResult): string {
   const lines: string[] = [];
   const hr = '─'.repeat(52);
 
-  const allIssues = sortBySeverity([...report.issues, ...result.issues]);
-  const issueLabel = allIssues.length === 1 ? '1 issue' : `${allIssues.length} issues`;
-
-  lines.push(`\nLint: ${report.path}  — ${issueLabel}`);
+  lines.push(`\nLint: ${report.path}`);
   lines.push(hr);
   lines.push(`Rules  : ${result.rulesRun.join(', ')}`);
   lines.push(`Blocks : ${report.totalBlocks}  Tokens: ${report.totalTokens}`);
 
-  if (allIssues.length === 0) {
-    lines.push('');
-    lines.push('  ✓ No issues found');
+  // --- Analysis warnings ---
+  lines.push('');
+  lines.push(`Analysis warnings (${report.issues.length}):`);
+  if (report.issues.length === 0) {
+    lines.push('  ✓ none');
   } else {
-    lines.push('');
-    for (const issue of allIssues) {
-      const icon = SEVERITY_ICON[issue.severity] ?? '?';
-      const loc = issue.blockId ? ` [${issue.blockId}]` : '';
-      const source = result.issues.includes(issue) ? '' : ' (analysis)';
-      lines.push(`  ${icon}${loc} ${issue.ruleId}${source}`);
-      lines.push(`    ${issue.message}`);
+    for (const issue of sortBySeverity(report.issues)) {
+      renderIssue(lines, issue);
+    }
+  }
+
+  // --- Lint issues ---
+  lines.push('');
+  lines.push(`Lint issues (${result.issues.length}):`);
+  if (result.issues.length === 0) {
+    lines.push('  ✓ none');
+  } else {
+    for (const issue of sortBySeverity(result.issues)) {
+      renderIssue(lines, issue);
     }
   }
 
@@ -43,6 +48,7 @@ export function renderLintText(report: AnalysisReport, result: LintResult): stri
 
 /**
  * Machine-readable JSON output for the lint command (--json flag).
+ * Analysis warnings and lint issues are kept as separate arrays.
  */
 export function renderLintJson(report: AnalysisReport, result: LintResult): string {
   return JSON.stringify(
@@ -53,7 +59,6 @@ export function renderLintJson(report: AnalysisReport, result: LintResult): stri
       rulesRun: result.rulesRun,
       analysisIssues: report.issues,
       lintIssues: result.issues,
-      allIssues: sortBySeverity([...report.issues, ...result.issues]),
     },
     null,
     2,
@@ -63,6 +68,16 @@ export function renderLintJson(report: AnalysisReport, result: LintResult): stri
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function renderIssue(lines: string[], issue: AnalysisIssue): void {
+  const icon = SEVERITY_ICON[issue.severity] ?? '?';
+  const loc = issue.blockId ? ` [${issue.blockId}]` : '';
+  lines.push(`  ${icon}${loc} ${issue.ruleId}`);
+  lines.push(`    ${issue.message}`);
+  if (issue.suggestion) {
+    lines.push(`    → ${issue.suggestion}`);
+  }
+}
 
 const SEVERITY_ORDER: Record<string, number> = { error: 0, warning: 1, info: 2 };
 
