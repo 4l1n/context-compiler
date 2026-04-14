@@ -1,0 +1,44 @@
+{
+  "tokenizer": {
+    "default": "char",
+    "char": {
+      "charsPerToken": 4
+    }
+  },
+  "lint": {
+    "warnings": {
+      "blockTooLong": 500,
+      "structuredDataTooLarge": 200,
+      "toolOutputTooLarge": 300,
+      "unknownRatio": 0.3
+    },
+    "thresholds": {
+      "noisyToolOutputTokens": 300,
+      "oversizedExampleRatio": 0.4
+    },
+    "rules": {
+      "enabled": [
+        "duplicated-instruction",
+        "repeated-formatting-rules",
+        "oversized-example-section",
+        "noisy-tool-output"
+      ],
+      "disabled": []
+    }
+  },
+  "optimize": {
+    "thresholds": {
+      "truncateToolOutputTokens": 300,
+      "trimOversizedExamplesPercent": 40
+    },
+    "transforms": {
+      "enabled": [
+        "remove-exact-duplicates",
+        "collapse-formatting-rules",
+        "truncate-tool-output",
+        "trim-oversized-examples"
+      ],
+      "disabled": []
+    }
+  }
+}

@@ -37,7 +37,7 @@ Options:
   --dry-run    Show what would change without writing (optimize only)
   --write      Write optimized content back to the file (optimize only)
 
-Version: 0.0.1
+Version: 0.1.0
 `);
 }
 

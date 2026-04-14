@@ -1,149 +1,134 @@
 # context-compiler
 
-`context-compiler` is a local-first context compiler for LLM workflows.
+`context-compiler` is a local-first CLI for inspecting, linting, and deterministically compacting prompt context.
 
-It is not a prompt generator.
-It inspects, diagnoses, and safely compacts existing context.
+It helps you understand what is inside a prompt/context file before you send it anywhere.
 
-## Positioning
+## What It Does
 
-`analyze` = inspection  
-`lint` = diagnosis  
-`optimize` = safe, explainable action
+- Splits `.md`, `.txt`, and `.json` files into analyzable blocks.
+- Classifies blocks with deterministic heuristics.
+- Counts approximate tokens with the current char tokenizer.
+- Reports warnings and lint issues for prompt/context debt.
+- Applies safe, deterministic optimize transforms with explicit change records.
+- Runs locally with no remote API calls.
 
-Current phase goals:
-- deterministic behavior
-- no external API calls
-- no AI-based rewriting
-- local file in, local result out
+## What It Does Not Do
 
-## Local-First Philosophy
+- It does not generate prompts.
+- It does not use AI or model calls.
+- It does not rewrite semantic intent.
+- It does not install plugins or integrations.
+- It does not include a frontend.
+- It is not published to npm yet; this release is prepared for a GitHub tag.
 
-- Runs on local files.
-- No remote inference dependency.
-- No hidden prompt mutation.
-- Every optimize change is explicit (`remove` or `replace`) with reason and token delta.
-
-## Workspace Layout
-
-| Package | Purpose |
-|---|---|
-| `@context-compiler/core` | parsing, classification, analysis, optimization pipeline |
-| `@context-compiler/rules` | lint rules and lint runner |
-| `@context-compiler/tokenizers` | tokenizer interface + char tokenizer |
-| `@context-compiler/config` | config schema, defaults, config loader |
-| `@context-compiler/fixtures` | realistic prompt/context fixtures |
-| `apps/cli` | command orchestration + terminal rendering |
-
-## Setup
+## Quick Start
 
 ```bash
+git clone https://github.com/4l1n/context-compiler.git
+cd context-compiler
 pnpm install
 pnpm build
-pnpm test
-pnpm typecheck
-pnpm benchmark
+
+pnpm cli help
+pnpm cli analyze examples/basic-prompt.md
+pnpm cli lint examples/basic-prompt.md
+pnpm cli optimize examples/basic-prompt.md --dry-run
+```
+
+`optimize` does not write by default. Use `--write` only when you want to replace the input file.
+
+```bash
+pnpm cli optimize examples/basic-prompt.md --write
 ```
 
 ## Commands
 
 ```bash
-node apps/cli/dist/index.js help
-node apps/cli/dist/index.js analyze <file> [--json] [--config <path>]
-node apps/cli/dist/index.js lint <file> [--json] [--config <path>]
-node apps/cli/dist/index.js optimize <file> [--dry-run] [--write] [--json] [--config <path>]
+pnpm cli analyze <file> [--json] [--config <path>]
+pnpm cli lint <file> [--json] [--config <path>]
+pnpm cli optimize <file> [--dry-run] [--write] [--json] [--config <path>]
 ```
 
-## Command Behavior
-
-### `analyze`
-
-Returns structural report:
-- blocks
-- token totals and percentages
-- heuristic warnings
-
-Example:
+You can also run the built CLI directly:
 
 ```bash
-node apps/cli/dist/index.js analyze ./prompt.md
+node apps/cli/dist/index.js analyze examples/basic-prompt.md
 ```
 
-Example output:
+## Analyze
 
-```text
-Analysis: ./prompt.md
-────────────────────────────────────────────────────
-Blocks : 6
-Tokens : 812
-```
-
-### `lint`
-
-Runs rule checks on analyzed blocks and reports:
-- analysis warnings
-- lint issues
-
-Example:
+`analyze` returns block structure, block types, approximate token counts, token percentages, and heuristic warnings.
 
 ```bash
-node apps/cli/dist/index.js lint ./prompt.md
+pnpm cli analyze examples/basic-prompt.md
+pnpm cli analyze examples/basic-prompt.md --json
 ```
 
-Example output:
+## Lint
 
-```text
-Lint: ./prompt.md
-────────────────────────────────────────────────────
-Rules  : duplicated-instruction, repeated-formatting-rules, oversized-example-section, noisy-tool-output
-Blocks : 6  Tokens: 812
+`lint` runs deterministic rules over the analyzed blocks.
+
+Current rules:
+
+- `duplicated-instruction`
+- `repeated-formatting-rules`
+- `oversized-example-section`
+- `noisy-tool-output`
+
+```bash
+pnpm cli lint examples/basic-prompt.md
+pnpm cli lint examples/basic-prompt.md --json
 ```
 
-### `optimize`
+## Optimize
 
-Applies deterministic transforms from `core`:
+`optimize` applies deterministic transforms and reports every change as `remove` or `replace` with a reason and token delta.
+
+Current transforms:
+
 - `remove-exact-duplicates`
 - `collapse-formatting-rules`
 - `truncate-tool-output`
 - `trim-oversized-examples`
 
-Default mode does not write.
-Use `--write` to persist.
-
-Example:
+Preview changes:
 
 ```bash
-node apps/cli/dist/index.js optimize ./prompt.md --dry-run
+pnpm cli optimize examples/basic-prompt.md --dry-run
 ```
 
-Example output:
+Write changes:
 
-```text
-Optimize: ./prompt.md
-────────────────────────────────────────────────────
-Tokens : 479 → 400  (−79, −16%)
-Changes: 3 applied
+```bash
+pnpm cli optimize examples/basic-prompt.md --write
+```
+
+Machine-readable output:
+
+```bash
+pnpm cli optimize examples/basic-prompt.md --dry-run --json
 ```
 
 ## Configuration
 
-By default, CLI looks for `context-compiler.config.json` in the current working directory.
-You can also pass `--config <path>`.
+By default, the CLI looks for `context-compiler.config.json` in the current working directory.
+You can also pass an explicit config path.
 
-Config controls:
-- lint warning thresholds
-- lint rule thresholds
-- optimize transform thresholds
-- default tokenizer settings
-- enable/disable lists for rules and transforms
+```bash
+pnpm cli lint examples/basic-prompt.md --config examples/context-compiler.config.json
+pnpm cli optimize examples/basic-prompt.md --dry-run --config examples/context-compiler.config.json
+```
 
-Minimal example:
+Minimal config shape:
 
 ```json
 {
   "tokenizer": {
     "default": "char",
-    "char": { "charsPerToken": 4 }
+    "char": {
+      "charsPerToken": 4
+    }
   },
   "lint": {
     "warnings": {
@@ -174,9 +159,35 @@ Minimal example:
 }
 ```
 
-## Evidence
+Unknown rule or transform IDs fail loudly instead of being ignored.
 
-Current claims are backed by reproducible local checks:
+## Workspace Layout
+
+| Package | Purpose |
+|---|---|
+| `@context-compiler/core` | parsing, classification, analysis, optimization pipeline |
+| `@context-compiler/rules` | lint rules and lint runner |
+| `@context-compiler/tokenizers` | tokenizer interface and char tokenizer |
+| `@context-compiler/config` | config schema, defaults, and loader |
+| `@context-compiler/fixtures` | realistic prompt/context fixtures |
+| `apps/cli` | command orchestration and terminal rendering |
+
+## Verification
+
+```bash
+pnpm test
+pnpm typecheck
+pnpm build
+pnpm benchmark
+```
+
+Or run the combined local verification script:
+
+```bash
+pnpm verify
+```
+
+## Evidence
 
 | Claim | Evidence |
 |---|---|
@@ -185,10 +196,27 @@ Current claims are backed by reproducible local checks:
 | Unknown configured rule and transform IDs fail loudly | `pnpm test` config and builder validation coverage |
 | Pipeline behavior can be measured locally | `pnpm benchmark` |
 
+## Benchmark
+
 The benchmark is a local measurement utility over repository fixtures.
-It is not a universal performance guarantee.
+It is useful for comparing changes on the same machine, but it is not a universal performance guarantee.
 
 ```bash
 pnpm benchmark
 BENCH_ITERATIONS=50 pnpm benchmark
 ```
+
+## Release Status
+
+`0.1.0` is the first public GitHub-tag release target.
+
+Current limitations:
+
+- Packages remain private and are not prepared for npm publishing.
+- Token counts use the placeholder char tokenizer.
+- Classification, linting, and optimization are heuristic and deterministic.
+- Only local file workflows are supported.
+
+## License
+
+MIT

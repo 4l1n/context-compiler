@@ -1,13 +1,31 @@
 {
   "name": "context-compiler",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "description": "Local-first CLI for inspecting, linting, and deterministically compacting prompt context.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/4l1n/context-compiler.git"
+  },
+  "bugs": {
+    "url": "https://github.com/4l1n/context-compiler/issues"
+  },
+  "keywords": [
+    "llm",
+    "prompt",
+    "context",
+    "cli",
+    "local-first"
+  ],
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "benchmark": "pnpm build && node scripts/benchmark.mjs",
+    "cli": "node apps/cli/dist/index.js",
+    "verify": "pnpm test && pnpm typecheck && pnpm build && pnpm benchmark",
     "dev": "turbo run dev"
   },
   "devDependencies": {
