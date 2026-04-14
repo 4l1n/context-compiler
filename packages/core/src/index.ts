@@ -16,12 +16,20 @@ export { loadFile } from './loader.js';
 export { parseBlocks } from './parser.js';
 export type { RawBlock } from './parser.js';
 export { classifyBlock } from './classifier.js';
-export { checkWarnings, WARN_THRESHOLDS } from './warnings.js';
+export { checkWarnings, WARN_THRESHOLDS, DEFAULT_WARNING_THRESHOLDS } from './warnings.js';
+export type { WarningThresholds } from './warnings.js';
 export { buildReport, analyze } from './analyzer.js';
+export type { BuildReportOptions } from './analyzer.js';
 export { runOptimize } from './optimizer.js';
-export type { ITransform, TransformContext, TransformResult } from './transforms/index.js';
+export type {
+  ITransform,
+  TransformContext,
+  TransformResult,
+  TransformBuildOptions,
+} from './transforms/index.js';
 export {
   DEFAULT_TRANSFORMS,
+  buildTransforms,
   removeExactDuplicates,
   collapseFormattingRules,
   truncateToolOutput,

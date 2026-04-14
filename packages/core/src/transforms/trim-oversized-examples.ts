@@ -14,57 +14,71 @@ import type { AnalyzedBlock, OptimizationChange } from '../types.js';
  */
 
 export const EXAMPLE_MAX_PERCENT = 40;
-const EXAMPLE_MIN_LINES = 5;
+const DEFAULT_EXAMPLE_MIN_LINES = 5;
 const EXAMPLE_TRUNCATED_MARKER_RE = /^\[\.\.\. example truncated \d+ lines? \.\.\.\]$/m;
 
-export const trimOversizedExamples: ITransform = {
-  id: 'trim-oversized-examples',
-  description: `Trims example blocks when they exceed ${EXAMPLE_MAX_PERCENT}% of total tokens`,
+export type TrimOversizedExamplesOptions = {
+  maxPercent?: number;
+  minLines?: number;
+};
 
-  apply({ blocks, totalTokens, tokenizer }: TransformContext): TransformResult {
-    if (totalTokens === 0) return { blocks, changes: [] };
+export function createTrimOversizedExamples(
+  options: TrimOversizedExamplesOptions = {},
+): ITransform {
+  const maxPercent = options.maxPercent ?? EXAMPLE_MAX_PERCENT;
+  const minLines = options.minLines ?? DEFAULT_EXAMPLE_MIN_LINES;
 
-    const exampleBlocks = blocks.filter(b => b.type === 'example');
-    const exampleTokens = exampleBlocks.reduce((s, b) => s + b.tokenCount, 0);
-    const examplePercent = (exampleTokens / totalTokens) * 100;
+  return {
+    id: 'trim-oversized-examples',
+    description: `Trims example blocks when they exceed ${maxPercent}% of total tokens`,
 
-    if (examplePercent <= EXAMPLE_MAX_PERCENT) return { blocks, changes: [] };
+    apply({ blocks, totalTokens, tokenizer }: TransformContext): TransformResult {
+      if (totalTokens === 0) return { blocks, changes: [] };
 
-    const changes: OptimizationChange[] = [];
+      const exampleBlocks = blocks.filter(b => b.type === 'example');
+      const exampleTokens = exampleBlocks.reduce((s, b) => s + b.tokenCount, 0);
+      const examplePercent = (exampleTokens / totalTokens) * 100;
 
-    const newBlocks: AnalyzedBlock[] = blocks.map(block => {
-      if (block.type !== 'example') return block;
-      if (EXAMPLE_TRUNCATED_MARKER_RE.test(block.content)) return block;
+      if (examplePercent <= maxPercent) return { blocks, changes: [] };
 
-      const lines = block.content.split('\n');
-      if (lines.length <= EXAMPLE_MIN_LINES) return block;
+      const changes: OptimizationChange[] = [];
 
-      const kept = lines.slice(0, EXAMPLE_MIN_LINES);
-      const truncatedCount = lines.length - EXAMPLE_MIN_LINES;
-      const newContent =
-        kept.join('\n') +
-        `\n[... example truncated ${truncatedCount} line${truncatedCount > 1 ? 's' : ''} ...]`;
+      const newBlocks: AnalyzedBlock[] = blocks.map(block => {
+        if (block.type !== 'example') return block;
+        if (EXAMPLE_TRUNCATED_MARKER_RE.test(block.content)) return block;
 
-      const tokensAfter = tokenizer.count(newContent);
-      if (tokensAfter >= block.tokenCount) return block;
+        const lines = block.content.split('\n');
+        if (lines.length <= minLines) return block;
 
-      changes.push({
-        type: 'replace',
-        transformId: 'trim-oversized-examples',
-        blockIds: [block.id],
-        before: block.content,
-        after: newContent,
-        reason: `Example blocks use ${Math.round(examplePercent)}% of total tokens (threshold: ${EXAMPLE_MAX_PERCENT}%)`,
-        tokenDelta: tokensAfter - block.tokenCount,
+        const kept = lines.slice(0, minLines);
+        const truncatedCount = lines.length - minLines;
+        const newContent =
+          kept.join('\n') +
+          `\n[... example truncated ${truncatedCount} line${truncatedCount > 1 ? 's' : ''} ...]`;
+
+        const tokensAfter = tokenizer.count(newContent);
+        if (tokensAfter >= block.tokenCount) return block;
+
+        changes.push({
+          type: 'replace',
+          transformId: 'trim-oversized-examples',
+          blockIds: [block.id],
+          before: block.content,
+          after: newContent,
+          reason: `Example blocks use ${Math.round(examplePercent)}% of total tokens (threshold: ${maxPercent}%)`,
+          tokenDelta: tokensAfter - block.tokenCount,
+        });
+
+        return {
+          ...block,
+          content: newContent,
+          tokenCount: tokensAfter,
+        };
       });
 
-      return {
-        ...block,
-        content: newContent,
-        tokenCount: tokensAfter,
-      };
-    });
+      return { blocks: newBlocks, changes };
+    },
+  };
+}
 
-    return { blocks: newBlocks, changes };
-  },
-};
+export const trimOversizedExamples: ITransform = createTrimOversizedExamples();

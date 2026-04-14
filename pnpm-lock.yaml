@@ -20,6 +20,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@context-compiler/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@context-compiler/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -42,9 +45,15 @@ importers:
 
   packages/config:
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.17)
 
   packages/core:
     devDependencies:
@@ -59,10 +68,6 @@ importers:
         version: 2.1.9(@types/node@22.19.17)
 
   packages/fixtures:
-    dependencies:
-      '@context-compiler/core':
-        specifier: workspace:*
-        version: link:../core
     devDependencies:
       typescript:
         specifier: ^5.7.0

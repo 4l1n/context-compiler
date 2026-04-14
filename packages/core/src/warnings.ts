@@ -1,34 +1,47 @@
 import type { AnalyzedBlock, AnalysisIssue } from './types.js';
 
-export const WARN_THRESHOLDS = {
+export type WarningThresholds = {
   /** Token count above which any block is flagged. */
-  blockTooLong: 500,
+  blockTooLong: number;
   /** Token count above which a structured_data block is flagged. */
-  structuredDataTooLarge: 200,
+  structuredDataTooLarge: number;
   /** Token count above which a tool_output block is flagged. */
-  toolOutputTooLarge: 300,
+  toolOutputTooLarge: number;
   /** Ratio (0–1) of unknown blocks that triggers a warning. */
+  unknownRatio: number;
+};
+
+export const DEFAULT_WARNING_THRESHOLDS: WarningThresholds = {
+  blockTooLong: 500,
+  structuredDataTooLarge: 200,
+  toolOutputTooLarge: 300,
   unknownRatio: 0.3,
 } as const;
+
+/** Backwards-compatible alias. */
+export const WARN_THRESHOLDS = DEFAULT_WARNING_THRESHOLDS;
 
 /**
  * Produce warnings for an analyzed block list.
  * These are heuristic thresholds, not hard errors.
  */
-export function checkWarnings(blocks: AnalyzedBlock[]): AnalysisIssue[] {
+export function checkWarnings(
+  blocks: AnalyzedBlock[],
+  thresholds: WarningThresholds = DEFAULT_WARNING_THRESHOLDS,
+): AnalysisIssue[] {
   const issues: AnalysisIssue[] = [];
 
   for (const block of blocks) {
-    if (block.tokenCount > WARN_THRESHOLDS.blockTooLong) {
+    if (block.tokenCount > thresholds.blockTooLong) {
       issues.push({
         ruleId: 'block-too-long',
         severity: 'warning',
-        message: `Block is ${block.tokenCount} tokens (threshold: ${WARN_THRESHOLDS.blockTooLong})`,
+        message: `Block is ${block.tokenCount} tokens (threshold: ${thresholds.blockTooLong})`,
         blockId: block.id,
       });
     }
 
-    if (block.type === 'structured_data' && block.tokenCount > WARN_THRESHOLDS.structuredDataTooLarge) {
+    if (block.type === 'structured_data' && block.tokenCount > thresholds.structuredDataTooLarge) {
       issues.push({
         ruleId: 'structured-data-too-large',
         severity: 'warning',
@@ -37,7 +50,7 @@ export function checkWarnings(blocks: AnalyzedBlock[]): AnalysisIssue[] {
       });
     }
 
-    if (block.type === 'tool_output' && block.tokenCount > WARN_THRESHOLDS.toolOutputTooLarge) {
+    if (block.type === 'tool_output' && block.tokenCount > thresholds.toolOutputTooLarge) {
       issues.push({
         ruleId: 'tool-output-too-large',
         severity: 'warning',
@@ -48,7 +61,7 @@ export function checkWarnings(blocks: AnalyzedBlock[]): AnalysisIssue[] {
   }
 
   const unknownCount = blocks.filter(b => b.type === 'unknown').length;
-  if (blocks.length > 0 && unknownCount / blocks.length > WARN_THRESHOLDS.unknownRatio) {
+  if (blocks.length > 0 && unknownCount / blocks.length > thresholds.unknownRatio) {
     issues.push({
       ruleId: 'too-many-unknown-blocks',
       severity: 'info',

@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@context-compiler/config": "workspace:*",
     "@context-compiler/core": "workspace:*",
     "@context-compiler/rules": "workspace:*",
     "@context-compiler/tokenizers": "workspace:*"

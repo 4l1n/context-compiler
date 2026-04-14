@@ -3,7 +3,12 @@ import { loadFile } from './loader.js';
 import { parseBlocks } from './parser.js';
 import { classifyBlock } from './classifier.js';
 import { checkWarnings } from './warnings.js';
+import type { WarningThresholds } from './warnings.js';
 import type { ITokenizer, AnalysisReport, AnalyzedBlock } from './types.js';
+
+export type BuildReportOptions = {
+  warningThresholds?: WarningThresholds;
+};
 
 /**
  * Pure analysis: no I/O.
@@ -15,6 +20,7 @@ export function buildReport(
   content: string,
   ext: string,
   tokenizer: ITokenizer,
+  options: BuildReportOptions = {},
 ): AnalysisReport {
   const rawBlocks = parseBlocks(content, ext);
   const tokenCounts = rawBlocks.map(b => tokenizer.count(b.content));
@@ -34,7 +40,7 @@ export function buildReport(
   return {
     path: filePath,
     blocks,
-    issues: checkWarnings(blocks),
+    issues: checkWarnings(blocks, options.warningThresholds),
     totalBlocks: blocks.length,
     totalTokens,
     createdAt: new Date(),
@@ -44,8 +50,12 @@ export function buildReport(
 /**
  * Full analysis: reads from the filesystem, then calls buildReport.
  */
-export async function analyze(filePath: string, tokenizer: ITokenizer): Promise<AnalysisReport> {
+export async function analyze(
+  filePath: string,
+  tokenizer: ITokenizer,
+  options: BuildReportOptions = {},
+): Promise<AnalysisReport> {
   const ext = extname(filePath).toLowerCase();
   const content = await loadFile(filePath);
-  return buildReport(filePath, content, ext, tokenizer);
+  return buildReport(filePath, content, ext, tokenizer, options);
 }

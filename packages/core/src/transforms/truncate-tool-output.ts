@@ -13,67 +13,85 @@ import type { AnalyzedBlock, OptimizationChange } from '../types.js';
  */
 
 export const TOOL_OUTPUT_TOKEN_THRESHOLD = 300;
-const HEAD_LINES = 10;
-const TAIL_LINES = 5;
+const DEFAULT_HEAD_LINES = 10;
+const DEFAULT_TAIL_LINES = 5;
 const TRUNCATED_MARKER_RE = /^\[\.\.\. truncated \d+ lines? \.\.\.\]$/m;
 
 /** Lines in the truncated middle worth preserving. */
 const IMPORTANT_LINE_RE = /\b(error|warning|exception|failed|failure|traceback)\b/i;
 
-export const truncateToolOutput: ITransform = {
-  id: 'truncate-tool-output',
-  description: `Truncates tool_output blocks exceeding ${TOOL_OUTPUT_TOKEN_THRESHOLD} tokens`,
+export type TruncateToolOutputOptions = {
+  tokenThreshold?: number;
+  headLines?: number;
+  tailLines?: number;
+  importantLinePattern?: RegExp;
+};
 
-  apply({ blocks, tokenizer }: TransformContext): TransformResult {
-    const changes: OptimizationChange[] = [];
+export function createTruncateToolOutput(
+  options: TruncateToolOutputOptions = {},
+): ITransform {
+  const tokenThreshold = options.tokenThreshold ?? TOOL_OUTPUT_TOKEN_THRESHOLD;
+  const headLines = options.headLines ?? DEFAULT_HEAD_LINES;
+  const tailLines = options.tailLines ?? DEFAULT_TAIL_LINES;
+  const importantLinePattern = options.importantLinePattern ?? IMPORTANT_LINE_RE;
 
-    const newBlocks: AnalyzedBlock[] = blocks.map(block => {
-      if (block.type !== 'tool_output' || block.tokenCount <= TOOL_OUTPUT_TOKEN_THRESHOLD) {
-        return block;
-      }
-      if (TRUNCATED_MARKER_RE.test(block.content)) return block;
+  return {
+    id: 'truncate-tool-output',
+    description: `Truncates tool_output blocks exceeding ${tokenThreshold} tokens`,
 
-      const lines = block.content.split('\n');
+    apply({ blocks, tokenizer }: TransformContext): TransformResult {
+      const changes: OptimizationChange[] = [];
 
-      // Nothing to truncate if the block fits in head + tail already.
-      if (lines.length <= HEAD_LINES + TAIL_LINES) return block;
+      const newBlocks: AnalyzedBlock[] = blocks.map(block => {
+        if (block.type !== 'tool_output' || block.tokenCount <= tokenThreshold) {
+          return block;
+        }
+        if (TRUNCATED_MARKER_RE.test(block.content)) return block;
 
-      const head = lines.slice(0, HEAD_LINES);
-      const tail = lines.slice(-TAIL_LINES);
-      const middle = lines.slice(HEAD_LINES, lines.length - TAIL_LINES);
+        const lines = block.content.split('\n');
 
-      const importantLines = middle.filter(l => IMPORTANT_LINE_RE.test(l));
-      const truncatedCount = middle.length - importantLines.length;
+        // Nothing to truncate if the block fits in head + tail already.
+        if (lines.length <= headLines + tailLines) return block;
 
-      const markerParts: string[] = [];
-      if (truncatedCount > 0) {
-        markerParts.push(`[... truncated ${truncatedCount} line${truncatedCount > 1 ? 's' : ''} ...]`);
-      }
-      if (importantLines.length > 0) {
-        markerParts.push(...importantLines);
-      }
+        const head = lines.slice(0, headLines);
+        const tail = lines.slice(-tailLines);
+        const middle = lines.slice(headLines, lines.length - tailLines);
 
-      const newContent = [...head, ...markerParts, ...tail].join('\n');
-      const tokensAfter = tokenizer.count(newContent);
-      if (tokensAfter >= block.tokenCount) return block;
+        const importantLines = middle.filter(l => importantLinePattern.test(l));
+        const truncatedCount = middle.length - importantLines.length;
 
-      changes.push({
-        type: 'replace',
-        transformId: 'truncate-tool-output',
-        blockIds: [block.id],
-        before: block.content,
-        after: newContent,
-        reason: `tool_output exceeded ${TOOL_OUTPUT_TOKEN_THRESHOLD} tokens (was ${block.tokenCount})`,
-        tokenDelta: tokensAfter - block.tokenCount,
+        const markerParts: string[] = [];
+        if (truncatedCount > 0) {
+          markerParts.push(`[... truncated ${truncatedCount} line${truncatedCount > 1 ? 's' : ''} ...]`);
+        }
+        if (importantLines.length > 0) {
+          markerParts.push(...importantLines);
+        }
+
+        const newContent = [...head, ...markerParts, ...tail].join('\n');
+        const tokensAfter = tokenizer.count(newContent);
+        if (tokensAfter >= block.tokenCount) return block;
+
+        changes.push({
+          type: 'replace',
+          transformId: 'truncate-tool-output',
+          blockIds: [block.id],
+          before: block.content,
+          after: newContent,
+          reason: `tool_output exceeded ${tokenThreshold} tokens (was ${block.tokenCount})`,
+          tokenDelta: tokensAfter - block.tokenCount,
+        });
+
+        return {
+          ...block,
+          content: newContent,
+          tokenCount: tokensAfter,
+        };
       });
 
-      return {
-        ...block,
-        content: newContent,
-        tokenCount: tokensAfter,
-      };
-    });
+      return { blocks: newBlocks, changes };
+    },
+  };
+}
 
-    return { blocks: newBlocks, changes };
-  },
-};
+export const truncateToolOutput: ITransform = createTruncateToolOutput();

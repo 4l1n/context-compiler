@@ -14,18 +14,24 @@ import type { AnalysisIssue } from '@context-compiler/core';
 /** Max tokens a single tool_output block may have before a warning is emitted. */
 export const TOOL_OUTPUT_TOKEN_THRESHOLD = 300;
 
-export const noisyToolOutput: IRule = {
-  id: 'noisy-tool-output',
-  description: `Warns when a tool_output block exceeds ${TOOL_OUTPUT_TOKEN_THRESHOLD} tokens`,
+export function createNoisyToolOutputRule(
+  threshold: number = TOOL_OUTPUT_TOKEN_THRESHOLD,
+): IRule {
+  return {
+    id: 'noisy-tool-output',
+    description: `Warns when a tool_output block exceeds ${threshold} tokens`,
 
-  check({ blocks }: LintContext): AnalysisIssue[] {
-    return blocks
-      .filter(b => b.type === 'tool_output' && b.tokenCount > TOOL_OUTPUT_TOKEN_THRESHOLD)
-      .map(b => ({
-        ruleId: 'noisy-tool-output',
-        severity: 'warning' as const,
-        message: `Tool output is ${b.tokenCount} tokens (threshold: ${TOOL_OUTPUT_TOKEN_THRESHOLD}) — truncate or summarize`,
-        blockId: b.id,
-      }));
-  },
-};
+    check({ blocks }: LintContext): AnalysisIssue[] {
+      return blocks
+        .filter(b => b.type === 'tool_output' && b.tokenCount > threshold)
+        .map(b => ({
+          ruleId: 'noisy-tool-output',
+          severity: 'warning' as const,
+          message: `Tool output is ${b.tokenCount} tokens (threshold: ${threshold}) — truncate or summarize`,
+          blockId: b.id,
+        }));
+    },
+  };
+}
+
+export const noisyToolOutput: IRule = createNoisyToolOutputRule();

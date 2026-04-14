@@ -96,6 +96,21 @@ describe('buildReport — warnings', () => {
     const warningIssues = report.issues.filter(i => i.ruleId !== 'too-many-unknown-blocks');
     expect(warningIssues).toHaveLength(0);
   });
+
+  it('supports custom warning thresholds', () => {
+    const content = 'one two three four';
+    const report = buildReport('t.md', content, '.md', wordTokenizer, {
+      warningThresholds: {
+        blockTooLong: 1,
+        structuredDataTooLarge: 9999,
+        toolOutputTooLarge: 9999,
+        unknownRatio: 1,
+      },
+    });
+    const issue = report.issues.find(i => i.ruleId === 'block-too-long');
+    expect(issue).toBeDefined();
+    expect(issue?.message).toContain('threshold: 1');
+  });
 });
 
 describe('buildReport — JSON ext', () => {

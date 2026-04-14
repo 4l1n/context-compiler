@@ -1,6 +1,7 @@
 # AGENTS.md
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+It is a contributor/agent operations guide, not end-user product documentation.
 
 ## Commands
 
@@ -21,6 +22,10 @@ cd packages/core && pnpm exec vitest run src/parser.test.ts
 node apps/cli/dist/index.js help
 node apps/cli/dist/index.js analyze <file>          # text output
 node apps/cli/dist/index.js analyze <file> --json   # JSON output
+node apps/cli/dist/index.js lint <file>
+node apps/cli/dist/index.js optimize <file> --dry-run
+node apps/cli/dist/index.js optimize <file> --write
+node apps/cli/dist/index.js analyze <file> --config context-compiler.config.json
 ```
 
 ## Architecture
@@ -33,7 +38,7 @@ core  ──► rules
      └──► fixtures
 config
 tokenizers         (no local deps)
-cli ──► core, tokenizers
+cli ──► core, rules, tokenizers, config
 ```
 
 **Analysis pipeline** (`packages/core`):
