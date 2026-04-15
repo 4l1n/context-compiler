@@ -23,7 +23,48 @@ It helps you understand what is inside a prompt/context file before you send it 
 - It does not include a frontend.
 - It is not published to npm yet; this release is prepared for a GitHub tag.
 
+## Install Status
+
+`context-compiler` is not published to npm yet.
+Use one of the local development flows below:
+
+- in-repo commands via `pnpm cc`
+- source-linked global commands via `pnpm --filter @context-compiler/cli link --global`
+
 ## Quick Start
+
+After source-linking (see below), use `ctxc` as the short command:
+
+```bash
+# Analyze raw text
+ctxc "You are helpful. You are helpful."
+
+# Analyze a file
+ctxc @prompt.md
+
+# Analyze a directory
+ctxc @prompts/
+
+# Pipe from stdin
+cat prompt.md | ctxc
+```
+
+Advanced subcommands for power users:
+
+```bash
+ctxc analyze @prompts/
+ctxc lint @prompts/ --fail-on warning
+ctxc optimize @prompts/ --check
+```
+
+`-h` / `--help` works anywhere:
+
+```bash
+ctxc --help
+ctxc -h
+```
+
+## Run from source (in-repo)
 
 ```bash
 git clone https://github.com/4l1n/context-compiler.git
@@ -32,28 +73,22 @@ pnpm install
 pnpm build
 ```
 
-`pnpm cc` is an in-repo convenience alias — it is not available outside the cloned repo.
-After the build, any of these work from the repo root:
+`pnpm cc` and `pnpm cli` are in-repo convenience aliases — they are not available outside
+the cloned repo. After the build, any of these work from the repo root:
 
 ```bash
-pnpm cc help                                      # in-repo alias
-pnpm cli help                                     # same alias, alternate name
-node apps/cli/dist/index.js help                  # direct node invocation
+pnpm cc @examples/basic-prompt.md     # in-repo alias, simple mode
+pnpm cc analyze examples/basic-prompt.md  # in-repo alias, advanced mode
+node apps/cli/dist/ctxc.js --help     # direct node invocation
 ```
 
 `optimize` does not write by default. Use `--write` only when you want to replace the input file.
 
-```bash
-pnpm cc analyze examples/basic-prompt.md
-pnpm cc lint examples/basic-prompt.md
-pnpm cc optimize examples/basic-prompt.md --dry-run
-pnpm cc optimize examples/basic-prompt.md --write
-```
+## Source-linked global install (development)
 
-## Install (source-linked)
-
-This is a **development/source-linked install** — the CLI binary is symlinked to the cloned
-repo, not bundled as a standalone binary. You must keep the repo on disk for the install to work.
+This is a **development/source-linked install** for package `@context-compiler/cli` — the CLI
+binary is symlinked to the cloned repo. You must keep the repo on disk for the install to work.
+The linked bin map exposes both `ctxc` (short) and `context-compiler` (compatibility name).
 
 ```bash
 git clone https://github.com/4l1n/context-compiler.git
@@ -63,16 +98,15 @@ pnpm build
 pnpm --filter @context-compiler/cli link --global
 ```
 
-After linking, `context-compiler` is the installed command name — available anywhere on the machine:
+After linking, `ctxc` and `context-compiler` are available anywhere on the machine:
 
 ```bash
-context-compiler help
-context-compiler analyze examples/basic-prompt.md
-context-compiler lint examples/basic-prompt.md
-context-compiler optimize examples/basic-prompt.md --dry-run
+ctxc @prompt.md
+ctxc lint examples/basic-prompt.md --fail-on error
+context-compiler @prompt.md
 ```
 
-To remove the global link:
+To remove:
 
 ```bash
 pnpm --filter @context-compiler/cli unlink --global
@@ -80,8 +114,8 @@ pnpm --filter @context-compiler/cli unlink --global
 
 ## Commands
 
-`pnpm cc` is an in-repo convenience alias. If you've done a source-linked install,
-replace `pnpm cc` with `context-compiler` in any command below.
+`pnpm cc` is an in-repo convenience alias. After source-linked install, replace `pnpm cc` with
+`ctxc` (short) or `context-compiler` (compatibility name) in any command below.
 
 ```bash
 pnpm cc analyze <file-or-directory> [--json] [--config <path>]

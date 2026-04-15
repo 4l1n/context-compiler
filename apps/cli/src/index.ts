@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { writeFile } from 'node:fs/promises';
 import { loadConfig } from '@context-compiler/config';
 import { KNOWN_TRANSFORM_IDS } from '@context-compiler/core';
@@ -36,13 +34,17 @@ import {
   parseMaxTokens,
 } from './check.js';
 
-const [, , command = 'help', ...args] = process.argv;
-
 function printHelp(): void {
   console.log(`context-compiler — analyze and optimize LLM prompts
 
-Usage:
-  context-compiler <command> [options]
+Simple mode (default: analyze):
+  ctxc @<file>            Analyze a file
+  ctxc @<directory>       Analyze all files in a directory
+  ctxc "<text>"           Analyze raw text
+  cat file | ctxc         Analyze piped input
+
+Advanced mode:
+  ctxc <command> [options]
 
 Commands:
   analyze  <input>  Structural analysis: blocks, tokens, warnings
@@ -51,6 +53,7 @@ Commands:
   help              Show this help
 
 Options:
+  -h, --help     Show this help
   --json         Output as JSON
   --config       Path to config JSON file
   --text         Use raw text input instead of a file or directory path
@@ -252,20 +255,55 @@ async function cmdOptimize(argv: string[]): Promise<void> {
   }
 }
 
+async function cmdSimple(argv: string[]): Promise<void> {
+  // Find the first positional (not a flag)
+  const firstPosIdx = argv.findIndex(a => !a.startsWith('-'));
+  const firstPos = firstPosIdx >= 0 ? argv[firstPosIdx] : '';
+  const rest = argv.filter((_, i) => i !== firstPosIdx);
+
+  if (firstPos.startsWith('@')) {
+    // @file or @directory → strip @ and analyze as a path
+    await cmdAnalyze([firstPos.slice(1), ...rest]);
+  } else if (firstPos) {
+    // bare positional → raw text
+    await cmdAnalyze(['--text', firstPos, ...rest]);
+  } else if (!process.stdin.isTTY) {
+    // piped input → stdin
+    await cmdAnalyze(['--stdin', ...rest]);
+  } else {
+    printHelp();
+  }
+}
+
 async function main(): Promise<void> {
-  switch (command) {
-    case 'analyze':
-      await cmdAnalyze(args);
-      break;
-    case 'lint':
-      await cmdLint(args);
-      break;
-    case 'optimize':
-      await cmdOptimize(args);
-      break;
-    case 'help':
-    default:
-      printHelp();
+  const rawArgs = process.argv.slice(2);
+
+  // -h / --help anywhere in args → show help and exit
+  if (rawArgs.includes('-h') || rawArgs.includes('--help')) {
+    printHelp();
+    return;
+  }
+
+  const KNOWN_COMMANDS = new Set(['analyze', 'lint', 'optimize', 'help']);
+  const [first = '', ...rest] = rawArgs;
+
+  if (KNOWN_COMMANDS.has(first)) {
+    switch (first) {
+      case 'analyze':
+        await cmdAnalyze(rest);
+        break;
+      case 'lint':
+        await cmdLint(rest);
+        break;
+      case 'optimize':
+        await cmdOptimize(rest);
+        break;
+      case 'help':
+      default:
+        printHelp();
+    }
+  } else {
+    await cmdSimple(rawArgs);
   }
 }
 
@@ -288,7 +326,8 @@ function parseArgs(argv: string[]): ParsedArgs {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith('--')) {
-      positionals.push(arg);
+      // Strip optional @ prefix so @file and file both work as path inputs
+      positionals.push(arg.startsWith('@') ? arg.slice(1) : arg);
       continue;
     }
 

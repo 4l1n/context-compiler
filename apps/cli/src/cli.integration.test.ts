@@ -1,7 +1,7 @@
 /**
  * Subprocess-level integration tests for the CLI entrypoint.
  *
- * These tests execute the real compiled binary at apps/cli/dist/index.js.
+ * These tests execute the real compiled binary at apps/cli/dist/ctxc.js.
  * Run `pnpm build` before running these tests, or they will fail with
  * "Cannot find module" / ENOENT errors.
  *
@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../../..');
-const CLI = resolve(REPO_ROOT, 'apps/cli/dist/index.js');
+const CLI = resolve(REPO_ROOT, 'apps/cli/dist/ctxc.js');
 
 type CliResult = { exitCode: number; stdout: string; stderr: string };
 
@@ -42,16 +42,33 @@ describe('help', () => {
   it('exits 0 and shows usage when command is "help"', () => {
     const { exitCode, stdout } = runCli(['help']);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('Usage:');
+    expect(stdout).toContain('Commands:');
   });
 
-  // Compatibility expectation: current behavior falls through to help when no
-  // command is provided. This is not a semantic guarantee — it is an
-  // observation about the current default.
-  it('exits 0 and shows usage when no args are provided', () => {
-    const { exitCode, stdout } = runCli([]);
+  it('exits 0 and shows usage with --help flag', () => {
+    const { exitCode, stdout } = runCli(['--help']);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('Usage:');
+    expect(stdout).toContain('Commands:');
+  });
+
+  it('exits 0 and shows usage with -h flag', () => {
+    const { exitCode, stdout } = runCli(['-h']);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('Commands:');
+  });
+
+  it('exits 0 and shows usage with --help anywhere in args', () => {
+    const { exitCode, stdout } = runCli(['analyze', '--help']);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('Commands:');
+  });
+
+  // In an interactive terminal (isTTY=true), no args → shows help.
+  // In test context stdin is a closed pipe (isTTY=false), so simple mode
+  // reads empty stdin and analyzes it. Exit 0 in both cases.
+  it('exits 0 when no args are provided', () => {
+    const { exitCode } = runCli([]);
+    expect(exitCode).toBe(0);
   });
 });
 
@@ -251,3 +268,53 @@ describe('directory mode with filters', () => {
   });
 });
 
+// ─── simple mode ─────────────────────────────────────────────────────────────
+
+describe('simple mode', () => {
+  it('analyzes raw text as a positional argument', () => {
+    const { exitCode, stdout, stderr } = runCli(['Be concise.']);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout.length).toBeGreaterThan(0);
+  });
+
+  it('analyzes a file with @file prefix', () => {
+    const { exitCode, stdout, stderr } = runCli(['@examples/basic-prompt.md']);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout.length).toBeGreaterThan(0);
+  });
+
+  it('analyzes a directory with @directory prefix', () => {
+    const { exitCode, stdout, stderr } = runCli(['@examples']);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout.length).toBeGreaterThan(0);
+  });
+
+  it('analyzes piped stdin in simple mode', () => {
+    const { exitCode, stdout, stderr } = runCli([], { input: 'Be concise.' });
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout.length).toBeGreaterThan(0);
+  });
+
+  it('passes flags through to analyze (e.g. --json)', () => {
+    const { exitCode, stdout } = runCli(['Be concise.', '--json']);
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed).toHaveProperty('totalTokens');
+  });
+
+  it('supports @file in advanced mode too (@ prefix stripped)', () => {
+    const { exitCode, stderr } = runCli(['analyze', '@examples/basic-prompt.md']);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+  });
+
+  it('exits 2 with --max-tokens in simple mode', () => {
+    const { exitCode, stderr } = runCli(['@examples/basic-prompt.md', '--max-tokens', '10']);
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain('token budget exceeded');
+  });
+});

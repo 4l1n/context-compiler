@@ -24,8 +24,8 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "benchmark": "pnpm build && node scripts/benchmark.mjs",
-    "cli": "node apps/cli/dist/index.js",
-    "cc": "node apps/cli/dist/index.js",
+    "cli": "node apps/cli/dist/ctxc.js",
+    "cc": "node apps/cli/dist/ctxc.js",
     "verify": "pnpm test && pnpm typecheck && pnpm build && pnpm benchmark",
     "dev": "turbo run dev"
   },
