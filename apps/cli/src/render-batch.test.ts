@@ -82,6 +82,13 @@ describe('directory batch renderers', () => {
     expect(text).toContain('Files not written. Use --write to apply directory changes.');
   });
 
+  it('renders compact directory preview-only status', () => {
+    const result = optimizeDirectoryResult();
+    const text = renderOptimizeDirectoryText(result, { command: 'compact' });
+    expect(text).toContain('Compact: /tmp/prompts');
+    expect(text).toContain('Preview only. Files were not written.');
+  });
+
   it('renders optimize directory transform filtering once', () => {
     const result = {
       ...optimizeDirectoryResult(),

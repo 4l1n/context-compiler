@@ -19,6 +19,9 @@ export function renderLintText(report: AnalysisReport, result: LintResult): stri
   lines.push(hr);
   lines.push(`Rules  : ${result.rulesRun.join(', ')}`);
   lines.push(`Blocks : ${report.totalBlocks}  Tokens: ${report.totalTokens}`);
+  if (report.tokenizer) {
+    lines.push(`Tokenizer: ${report.tokenizer.id}`);
+  }
 
   // --- Analysis warnings ---
   lines.push('');
@@ -54,6 +57,7 @@ export function renderLintJson(report: AnalysisReport, result: LintResult): stri
   return JSON.stringify(
     {
       path: report.path,
+      tokenizer: report.tokenizer,
       totalBlocks: report.totalBlocks,
       totalTokens: report.totalTokens,
       rulesRun: result.rulesRun,

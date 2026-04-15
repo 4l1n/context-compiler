@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { loadConfig } from '@context-compiler/config';
+import type { ContextCompilerConfig } from '@context-compiler/config';
 import { KNOWN_TRANSFORM_IDS } from '@context-compiler/core';
 import { KNOWN_RULE_IDS } from '@context-compiler/rules';
 import { renderText, renderJson } from './render.js';
@@ -50,20 +51,22 @@ Commands:
   analyze  <input>  Structural analysis: blocks, tokens, warnings
   lint     <input>  Lint rules: detect issues in prompt structure
   optimize <input>  Apply safe deterministic transforms to reduce tokens
+  compact  <input>  Preview deterministic compacted output (no file writes)
   help              Show this help
 
 Options:
   -h, --help     Show this help
   --json         Output as JSON
   --config       Path to config JSON file
+  --tokenizer    Tokenizer override: char | o200k_base
   --text         Use raw text input instead of a file or directory path
   --stdin        Read input from stdin instead of a file or directory path
   --dry-run      Show what would change without writing (optimize only)
   --write        Write optimized content back to the file (optimize only)
   --check        Fail (exit 2) if any file would change without writing (optimize only)
-  --diff         Show compact before/after snippets (optimize only)
-  --only         Run only the listed optimize transform IDs (comma-separated)
-  --except       Run all default optimize transforms except the listed IDs
+  --diff         Show compact before/after snippets (optimize/compact)
+  --only         Run only the listed optimize transform IDs (optimize/compact)
+  --except       Run all default optimize transforms except the listed IDs (optimize/compact)
   --fail-on      Exit 2 if any lint issue at or above the given severity exists (lint only)
                  Values: error | warning | info
                  Counts both analysis warnings and lint-rule issues.
@@ -97,11 +100,7 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
       throw new Error('--include and --exclude require directory input');
     }
 
-    const config = await loadConfig({
-      configPath: parsed.options.get('config'),
-      knownRuleIds: KNOWN_RULE_IDS,
-      knownTransformIds: KNOWN_TRANSFORM_IDS,
-    });
+    const config = await loadRuntimeConfig(parsed);
 
     if (input.kind === 'directory') {
       const result = await analyzeDirectory(input.path, config, { filters });
@@ -144,11 +143,7 @@ async function cmdLint(argv: string[]): Promise<void> {
       throw new Error('--include and --exclude require directory input');
     }
 
-    const config = await loadConfig({
-      configPath: parsed.options.get('config'),
-      knownRuleIds: KNOWN_RULE_IDS,
-      knownTransformIds: KNOWN_TRANSFORM_IDS,
-    });
+    const config = await loadRuntimeConfig(parsed);
 
     if (input.kind === 'directory') {
       const result = await lintDirectory(input.path, config, { filters });
@@ -202,11 +197,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
       throw new Error('--include and --exclude require directory input');
     }
 
-    const config = await loadConfig({
-      configPath: parsed.options.get('config'),
-      knownRuleIds: KNOWN_RULE_IDS,
-      knownTransformIds: KNOWN_TRANSFORM_IDS,
-    });
+    const config = await loadRuntimeConfig(parsed);
 
     if (input.kind === 'directory') {
       const result = await optimizeDirectory(input.path, config, { write: shouldWrite, controls, filters });
@@ -241,6 +232,8 @@ async function cmdOptimize(argv: string[]): Promise<void> {
           wroteFile,
           canWrite: isPathInput(input),
           diff,
+          showOptimizedContent: input.kind === 'text' || input.kind === 'stdin',
+          command: 'optimize',
         }),
       );
     }
@@ -252,6 +245,67 @@ async function cmdOptimize(argv: string[]): Promise<void> {
   } catch (err) {
     console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(err instanceof CheckFailureError ? 2 : 1);
+  }
+}
+
+async function cmdCompact(argv: string[]): Promise<void> {
+  try {
+    const parsed = parseArgs(argv);
+    const jsonFlag = parsed.flags.has('json');
+    const diff = parsed.flags.has('diff');
+    const controls = parseOptimizeControls(parsed, KNOWN_TRANSFORM_IDS);
+    const filters = parseDirectoryFilters(parsed);
+
+    if (parsed.flags.has('write')) {
+      throw new Error('--write is not supported for compact (preview-only)');
+    }
+    if (parsed.flags.has('check')) {
+      throw new Error('--check is not supported for compact (preview-only)');
+    }
+
+    const input = await resolveCliInput(parsed, {
+      command: 'compact',
+      usage: usageFor('compact'),
+    });
+
+    if ((parsed.options.has('include') || parsed.options.has('exclude')) && input.kind !== 'directory') {
+      throw new Error('--include and --exclude require directory input');
+    }
+
+    const config = await loadRuntimeConfig(parsed);
+
+    if (input.kind === 'directory') {
+      const result = await optimizeDirectory(input.path, config, { controls, filters, write: false });
+      console.log(
+        jsonFlag
+          ? renderOptimizeDirectoryJson(result)
+          : renderOptimizeDirectoryText(result, { write: false, diff, command: 'compact' }),
+      );
+      return;
+    }
+
+    if (!isFileLikeInput(input)) {
+      throw new Error('compact requires file, --text, or --stdin input');
+    }
+
+    const result = optimizeInput(input, config, controls);
+    if (jsonFlag) {
+      console.log(renderOptimizeJson(result));
+    } else {
+      console.log(
+        renderOptimizeText(result, {
+          dryRun: true,
+          wroteFile: false,
+          canWrite: false,
+          diff,
+          showOptimizedContent: true,
+          command: 'compact',
+        }),
+      );
+    }
+  } catch (err) {
+    console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
   }
 }
 
@@ -284,7 +338,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const KNOWN_COMMANDS = new Set(['analyze', 'lint', 'optimize', 'help']);
+  const KNOWN_COMMANDS = new Set(['analyze', 'lint', 'optimize', 'compact', 'help']);
   const [first = '', ...rest] = rawArgs;
 
   if (KNOWN_COMMANDS.has(first)) {
@@ -297,6 +351,9 @@ async function main(): Promise<void> {
         break;
       case 'optimize':
         await cmdOptimize(rest);
+        break;
+      case 'compact':
+        await cmdCompact(rest);
         break;
       case 'help':
       default:
@@ -345,6 +402,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       key === 'text' ||
       key === 'only' ||
       key === 'except' ||
+      key === 'tokenizer' ||
       key === 'include' ||
       key === 'exclude' ||
       key === 'fail-on' ||
@@ -365,9 +423,32 @@ function parseArgs(argv: string[]): ParsedArgs {
   return { flags, options, positionals };
 }
 
-function usageFor(command: 'analyze' | 'lint' | 'optimize'): string {
-  const base = `context-compiler ${command} <file-or-directory> [--text <text>] [--stdin] [--json] [--config <path>] [--include <patterns>] [--exclude <patterns>]`;
+function usageFor(command: 'analyze' | 'lint' | 'optimize' | 'compact'): string {
+  const base = `context-compiler ${command} <file-or-directory> [--text <text>] [--stdin] [--json] [--config <path>] [--tokenizer <char|o200k_base>] [--include <patterns>] [--exclude <patterns>]`;
   if (command === 'analyze') return `${base} [--max-tokens <n>]`;
   if (command === 'lint') return `${base} [--fail-on error|warning|info]`;
+  if (command === 'compact') return `${base} [--diff] [--only <ids>] [--except <ids>]`;
   return `${base} [--dry-run] [--write] [--check] [--diff] [--only <ids>] [--except <ids>]`;
+}
+
+async function loadRuntimeConfig(parsed: ParsedArgs): Promise<ContextCompilerConfig> {
+  const config = await loadConfig({
+    configPath: parsed.options.get('config'),
+    knownRuleIds: KNOWN_RULE_IDS,
+    knownTransformIds: KNOWN_TRANSFORM_IDS,
+  });
+
+  const tokenizerId = parsed.options.get('tokenizer');
+  if (!tokenizerId) return config;
+  if (tokenizerId !== 'char' && tokenizerId !== 'o200k_base') {
+    throw new Error(`--tokenizer must be "char" or "o200k_base", got "${tokenizerId}"`);
+  }
+
+  return {
+    ...config,
+    tokenizer: {
+      ...config.tokenizer,
+      default: tokenizerId,
+    },
+  };
 }

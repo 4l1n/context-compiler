@@ -44,6 +44,14 @@ describe('renderLintText — header', () => {
     expect(out).toContain('2');
     expect(out).toContain('10');
   });
+
+  it('shows tokenizer metadata when present', () => {
+    const out = renderLintText(
+      { ...baseReport, tokenizer: { id: 'o200k_base' } },
+      cleanResult,
+    );
+    expect(out).toContain('Tokenizer: o200k_base');
+  });
 });
 
 describe('renderLintText — Analysis warnings section', () => {
@@ -171,5 +179,12 @@ describe('renderLintJson', () => {
     };
     expect(parsed.lintIssues).toHaveLength(2);
     expect(parsed.lintIssues.every(i => ['duplicated-instruction', 'noisy-tool-output'].includes(i.ruleId))).toBe(true);
+  });
+
+  it('includes tokenizer metadata when present', () => {
+    const parsed = JSON.parse(
+      renderLintJson({ ...baseReport, tokenizer: { id: 'o200k_base' } }, cleanResult),
+    ) as { tokenizer: { id: string } };
+    expect(parsed.tokenizer.id).toBe('o200k_base');
   });
 });

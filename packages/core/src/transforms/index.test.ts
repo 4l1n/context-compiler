@@ -27,6 +27,7 @@ describe('buildTransforms', () => {
     expect(transforms.map(t => t.id)).toEqual(KNOWN_TRANSFORM_IDS);
     expect(transforms.map(t => t.id)).toEqual([
       'remove-exact-duplicates',
+      'collapse-repeated-sentences',
       'collapse-formatting-rules',
       'truncate-tool-output',
       'trim-oversized-examples',
@@ -46,6 +47,7 @@ describe('buildTransforms', () => {
     });
     expect(transforms.map(t => t.id)).toEqual([
       'remove-exact-duplicates',
+      'collapse-repeated-sentences',
       'truncate-tool-output',
     ]);
   });

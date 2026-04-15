@@ -118,6 +118,40 @@ describe('analyze', () => {
     expect(stderr).toBe('');
     expect(stdout.length).toBeGreaterThan(0);
   });
+
+  it('supports --tokenizer override', () => {
+    const { exitCode, stdout, stderr } = runCli([
+      'analyze',
+      'examples/basic-prompt.md',
+      '--tokenizer',
+      'o200k_base',
+    ]);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('Tokenizer: o200k_base');
+  });
+
+  it('lets --tokenizer override config tokenizer selection', () => {
+    const { exitCode, stdout, stderr } = runCli([
+      'analyze',
+      'examples/basic-prompt.md',
+      '--config',
+      'examples/context-compiler.config.json',
+      '--tokenizer',
+      'o200k_base',
+      '--json',
+    ]);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    const parsed = JSON.parse(stdout) as { tokenizer: { id: string } };
+    expect(parsed.tokenizer.id).toBe('o200k_base');
+  });
+
+  it('exits 1 for invalid --tokenizer value', () => {
+    const { exitCode, stderr } = runCli(['analyze', 'examples/basic-prompt.md', '--tokenizer', 'bad']);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('--tokenizer must be');
+  });
 });
 
 // ─── lint ─────────────────────────────────────────────────────────────────────
@@ -224,6 +258,87 @@ describe('optimize', () => {
     ]);
     expect(exitCode).toBe(2);
     expect(stderr).toContain('optimize check failed');
+  });
+
+  it('shows optimized text for short non-file input', () => {
+    const { exitCode, stdout, stderr } = runCli([
+      'optimize',
+      '--text',
+      'You are helpful. You are helpful.',
+      '--dry-run',
+    ]);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('Compacted text:');
+  });
+});
+
+// ─── compact ──────────────────────────────────────────────────────────────────
+
+describe('compact', () => {
+  it('exits 0 for a valid file and shows compacted text', () => {
+    const { exitCode, stdout, stderr } = runCli(['compact', 'examples/basic-prompt.md']);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('Compact:');
+  });
+
+  it('exits 1 when --write is provided', () => {
+    const { exitCode, stderr } = runCli(['compact', 'examples/basic-prompt.md', '--write']);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('preview-only');
+  });
+
+  it('exits 1 when --check is provided', () => {
+    const { exitCode, stderr } = runCli(['compact', 'examples/basic-prompt.md', '--check']);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('preview-only');
+  });
+
+  it('compacts short repeated sentences from --text', () => {
+    const { exitCode, stdout, stderr } = runCli([
+      'compact',
+      '--text',
+      'You are helpful. You are helpful.',
+    ]);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('Compacted text:');
+    expect(stdout).toContain('You are helpful.');
+  });
+
+  it('shows a clear no-change message', () => {
+    const { exitCode, stdout, stderr } = runCli(['compact', '--text', 'Be concise.']);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('No deterministic compaction found.');
+  });
+
+  it('supports --tokenizer override', () => {
+    const { exitCode, stdout, stderr } = runCli([
+      'compact',
+      '--text',
+      'You are helpful. You are helpful.',
+      '--tokenizer',
+      'o200k_base',
+    ]);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('Tokenizer: o200k_base');
+  });
+
+  it('returns optimize-shaped JSON output', () => {
+    const { exitCode, stdout, stderr } = runCli([
+      'compact',
+      '--text',
+      'You are helpful. You are helpful.',
+      '--json',
+    ]);
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    const parsed = JSON.parse(stdout) as { optimizedContent: string; appliedChanges: unknown[] };
+    expect(parsed.optimizedContent).toBe('You are helpful.');
+    expect(parsed.appliedChanges.length).toBeGreaterThan(0);
   });
 });
 

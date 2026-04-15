@@ -116,8 +116,20 @@ describe('renderOptimizeText', () => {
       appliedChanges: [],
     };
     const out = renderOptimizeText(result, { dryRun: true });
-    expect(out).toContain('No changes');
+    expect(out).toContain('No deterministic compaction found');
     expect(out).not.toContain('File not written');
+  });
+
+  it('renders compact mode title and final compacted text', () => {
+    const out = renderOptimizeText(baseResult, {
+      command: 'compact',
+      dryRun: true,
+      showOptimizedContent: true,
+    });
+    expect(out).toContain('Compact: /tmp/prompt.md');
+    expect(out).toContain('Compacted text:');
+    expect(out).toContain('You are helpful.');
+    expect(out).toContain('Preview only. File not written.');
   });
 });
 

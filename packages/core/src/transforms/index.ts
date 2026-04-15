@@ -1,5 +1,6 @@
 export type { ITransform, TransformContext, TransformResult } from './types.js';
 export { removeExactDuplicates } from './remove-exact-duplicates.js';
+export { collapseRepeatedSentences } from './collapse-repeated-sentences.js';
 export { collapseFormattingRules } from './collapse-formatting-rules.js';
 export {
   truncateToolOutput,
@@ -13,6 +14,7 @@ export {
 } from './trim-oversized-examples.js';
 
 import { removeExactDuplicates } from './remove-exact-duplicates.js';
+import { collapseRepeatedSentences } from './collapse-repeated-sentences.js';
 import { collapseFormattingRules } from './collapse-formatting-rules.js';
 import { createTruncateToolOutput, truncateToolOutput } from './truncate-tool-output.js';
 import { createTrimOversizedExamples, trimOversizedExamples } from './trim-oversized-examples.js';
@@ -20,6 +22,7 @@ import type { ITransform } from './types.js';
 
 export const DEFAULT_TRANSFORMS: ITransform[] = [
   removeExactDuplicates,
+  collapseRepeatedSentences,
   collapseFormattingRules,
   truncateToolOutput,
   trimOversizedExamples,
@@ -49,6 +52,7 @@ export function buildTransforms(options: TransformBuildOptions = {}): ITransform
 
   const ordered: ITransform[] = [
     removeExactDuplicates,
+    collapseRepeatedSentences,
     collapseFormattingRules,
     truncateTransform,
     trimTransform,

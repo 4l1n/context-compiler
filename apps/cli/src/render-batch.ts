@@ -75,10 +75,12 @@ export function renderLintDirectoryJson(result: LintDirectoryResult): string {
 
 export function renderOptimizeDirectoryText(
   result: OptimizeDirectoryResult,
-  options: { write?: boolean; diff?: boolean } = {},
+  options: { write?: boolean; diff?: boolean; command?: 'optimize' | 'compact' } = {},
 ): string {
   const lines: string[] = [];
-  lines.push(`\nOptimize: ${result.path}`);
+  const command = options.command ?? 'optimize';
+  const title = command === 'compact' ? 'Compact' : 'Optimize';
+  lines.push(`\n${title}: ${result.path}`);
   lines.push(HR);
   const filterLine = formatActiveFilters(result.filters);
   if (filterLine) lines.push(filterLine);
@@ -119,7 +121,11 @@ export function renderOptimizeDirectoryText(
   if (options.write) {
     lines.push(`  Files written: ${result.summary.filesWritten}`);
   } else {
-    lines.push('  Files not written. Use --write to apply directory changes.');
+    lines.push(
+      command === 'compact'
+        ? '  Preview only. Files were not written.'
+        : '  Files not written. Use --write to apply directory changes.',
+    );
   }
 
   lines.push('');

@@ -24,8 +24,14 @@ pnpm cc lint examples
 pnpm cc optimize examples/basic-prompt.md --dry-run
 pnpm cc optimize examples --dry-run
 pnpm cc optimize examples/basic-prompt.md --dry-run --diff
+pnpm cc compact examples/basic-prompt.md
+pnpm cc compact examples --diff
+pnpm cc compact --text "You are helpful. You are helpful."
+echo "You are helpful. You are helpful." | pnpm cc compact --stdin
 pnpm cc optimize examples/basic-prompt.md --dry-run --only remove-exact-duplicates
 pnpm cc optimize examples --dry-run --except truncate-tool-output
+pnpm cc analyze examples/basic-prompt.md --tokenizer o200k_base
+pnpm cc compact examples/basic-prompt.md --tokenizer o200k_base
 pnpm cc analyze examples/protected-prompt.md
 pnpm cc analyze examples --include "*.md"
 pnpm cc lint examples --exclude protected-prompt.md
@@ -49,8 +55,9 @@ cd packages/core && pnpm exec vitest run src/parser.test.ts
 cd apps/cli && pnpm exec vitest run src/cli.integration.test.ts
 
 # Source-linked global install (optional, development/source-linked — not a standalone binary)
-# pnpm cc is an in-repo alias; after linking, context-compiler is the installed command name
+# pnpm cc is an in-repo alias; after linking, use ctxc (primary) or context-compiler (compat)
 pnpm --filter context-compiler-cli link --global
+ctxc help
 context-compiler help
 pnpm --filter context-compiler-cli unlink --global
 ```

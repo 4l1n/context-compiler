@@ -38,6 +38,7 @@ export {
   KNOWN_TRANSFORM_IDS,
   buildTransforms,
   removeExactDuplicates,
+  collapseRepeatedSentences,
   collapseFormattingRules,
   truncateToolOutput,
   trimOversizedExamples,

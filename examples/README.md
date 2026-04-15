@@ -3,7 +3,7 @@
 Run these from the repository root.
 
 `pnpm cc` is an in-repo convenience alias. If you have done a source-linked install,
-replace `pnpm cc` with `context-compiler` in any command below.
+replace `pnpm cc` with `ctxc` (primary) or `context-compiler` (compatibility alias).
 
 ```bash
 pnpm install
@@ -12,6 +12,7 @@ pnpm cc analyze examples/basic-prompt.md
 pnpm cc lint examples/basic-prompt.md
 pnpm cc optimize examples/basic-prompt.md --dry-run
 pnpm cc optimize examples/basic-prompt.md --dry-run --diff
+pnpm cc compact examples/basic-prompt.md
 ```
 
 Run the same commands across the example directory:
@@ -21,6 +22,7 @@ pnpm cc analyze examples
 pnpm cc lint examples
 pnpm cc optimize examples --dry-run
 pnpm cc optimize examples --dry-run --diff
+pnpm cc compact examples --diff
 ```
 
 Limit which optimize transforms run:
@@ -38,7 +40,14 @@ pnpm cc lint examples/basic-prompt.md --config examples/context-compiler.config.
 pnpm cc optimize examples/basic-prompt.md --dry-run --config examples/context-compiler.config.json
 ```
 
-The default tokenizer is `char`. To try the real model-family tokenizer, set `tokenizer.default` to `o200k_base` in a config file and pass it with `--config`.
+The default tokenizer is `char`. You can override it directly:
+
+```bash
+pnpm cc analyze examples/basic-prompt.md --tokenizer o200k_base
+pnpm cc compact examples/basic-prompt.md --tokenizer o200k_base
+```
+
+Or set `tokenizer.default` to `o200k_base` in a config file and pass it with `--config`.
 
 Use explicit non-file input:
 

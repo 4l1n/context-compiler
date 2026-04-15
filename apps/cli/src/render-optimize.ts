@@ -11,6 +11,8 @@ export type OptimizeRenderOptions = {
   wroteFile?: boolean;
   canWrite?: boolean;
   diff?: boolean;
+  showOptimizedContent?: boolean;
+  command?: 'optimize' | 'compact';
 };
 
 /**
@@ -21,8 +23,10 @@ export function renderOptimizeText(
   options: OptimizeRenderOptions = {},
 ): string {
   const lines: string[] = [];
+  const command = options.command ?? 'optimize';
+  const title = command === 'compact' ? 'Compact' : 'Optimize';
 
-  lines.push(`\nOptimize: ${result.path}`);
+  lines.push(`\n${title}: ${result.path}`);
   lines.push(HR);
   if (result.tokenizer) {
     lines.push(`Tokenizer: ${result.tokenizer.id}`);
@@ -33,7 +37,16 @@ export function renderOptimizeText(
   }
 
   if (result.appliedChanges.length === 0) {
-    lines.push(`No changes. Tokens: ${result.originalTokens}`);
+    lines.push('No deterministic compaction found.');
+    lines.push(`Tokens : ${result.originalTokens}`);
+    lines.push(
+      'Current transforms focus on duplicate blocks, repeated formatting rules, oversized examples, large tool output, and repeated exact sentences inside a block.',
+    );
+    if (options.showOptimizedContent) {
+      lines.push('');
+      lines.push('Compacted text:');
+      lines.push(result.optimizedContent);
+    }
     lines.push('');
     return lines.join('\n');
   }
@@ -60,10 +73,20 @@ export function renderOptimizeText(
     }
   }
 
+  if (options.showOptimizedContent) {
+    lines.push('Compacted text:');
+    lines.push(result.optimizedContent);
+    lines.push('');
+  }
+
   if (options.wroteFile) {
     lines.push(`File written: ${result.path}`);
   } else if (options.dryRun) {
-    lines.push(options.canWrite === false ? 'File not written.' : 'File not written. Use --write to apply changes.');
+    if (command === 'compact') {
+      lines.push('Preview only. File not written.');
+    } else {
+      lines.push(options.canWrite === false ? 'File not written.' : 'File not written. Use --write to apply changes.');
+    }
   }
 
   lines.push('');
