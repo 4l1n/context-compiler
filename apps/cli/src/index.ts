@@ -1,4 +1,5 @@
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { loadConfig } from '@context-compiler/config';
 import type { ContextCompilerConfig } from '@context-compiler/config';
 import { KNOWN_TRANSFORM_IDS } from '@context-compiler/core';
@@ -37,6 +38,9 @@ import {
   parseMaxTokens,
 } from './check.js';
 
+// Injected at build time by esbuild define. Never hardcode this value here.
+declare const __CLI_VERSION__: string;
+
 function printHelp(): void {
   console.log(`context-compiler — deterministic prompt/context compaction and inspection
 
@@ -50,6 +54,7 @@ Choose A Command:
   analyze  <input>  Inspect structure, token counts, and warnings
   lint     <input>  Detect prompt/context debt with deterministic rules
   optimize <input>  Advanced pipeline: dry-run/write/check and transform controls
+  config   set tokenizer.default <char|o200k_base>
   help              Show this help
 
 Common Inputs And Output:
@@ -83,13 +88,20 @@ Directory Targeting:
 Tokenizer:
   --tokenizer char|o200k_base
   char is fast/simple. o200k_base is more realistic for its model family.
+  Set a persistent default: ctxc config set tokenizer.default o200k_base
+
+Config:
+  ctxc config set tokenizer.default <char|o200k_base>
+  Writes to context-compiler.config.json in the current directory.
+  Use --config <path> to target a specific config file.
+  CLI flag > config file > built-in default (char).
 
 Exit Codes:
   0  Success
   1  Error (usage, validation, runtime)
   2  Check failure (--fail-on, --check, --max-tokens)
 
-Version: 0.2.0
+Version: ${__CLI_VERSION__}
 `);
 }
 
@@ -344,6 +356,75 @@ async function cmdCompact(argv: string[]): Promise<void> {
   }
 }
 
+async function cmdConfig(argv: string[]): Promise<void> {
+  // Parse --config <path> from argv before the subcommand positionals
+  let configPath: string | undefined;
+  const remaining: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--config') {
+      const next = argv[i + 1];
+      if (next === undefined || next.startsWith('--')) {
+        console.error('error: missing value for --config');
+        process.exit(1);
+      }
+      configPath = next;
+      i++;
+    } else {
+      remaining.push(argv[i]);
+    }
+  }
+
+  const [subcommand, key, value] = remaining;
+
+  if (subcommand !== 'set') {
+    console.error(
+      `error: unknown config subcommand "${subcommand ?? ''}". Usage: ctxc config set tokenizer.default <char|o200k_base>`,
+    );
+    process.exit(1);
+  }
+
+  if (key !== 'tokenizer.default') {
+    console.error(`error: unknown config key "${key ?? ''}". Supported keys: tokenizer.default`);
+    process.exit(1);
+  }
+
+  if (value !== 'char' && value !== 'o200k_base') {
+    console.error(`error: invalid value "${value ?? ''}". tokenizer.default must be "char" or "o200k_base"`);
+    process.exit(1);
+  }
+
+  const targetPath = configPath ? resolve(configPath) : resolve(process.cwd(), 'context-compiler.config.json');
+
+  let existing: Record<string, unknown> = {};
+  try {
+    const raw = await readFile(targetPath, 'utf8');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      console.error(`error: ${targetPath} contains malformed JSON`);
+      process.exit(1);
+    }
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      existing = parsed as Record<string, unknown>;
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    // File does not exist — start fresh
+  }
+
+  const tokenizer: Record<string, unknown> =
+    typeof existing.tokenizer === 'object' && existing.tokenizer !== null && !Array.isArray(existing.tokenizer)
+      ? { ...(existing.tokenizer as Record<string, unknown>) }
+      : {};
+
+  tokenizer.default = value;
+  existing.tokenizer = tokenizer;
+
+  await writeFile(targetPath, JSON.stringify(existing, null, 2) + '\n', 'utf8');
+  console.log(`Set tokenizer.default = ${value} in ${targetPath}`);
+}
+
 async function cmdSimple(argv: string[]): Promise<void> {
   // Find the first positional (not a flag)
   const firstPosIdx = argv.findIndex(a => !a.startsWith('-'));
@@ -373,7 +454,13 @@ async function main(): Promise<void> {
     return;
   }
 
-  const KNOWN_COMMANDS = new Set(['analyze', 'lint', 'optimize', 'compact', 'help']);
+  // --version / -v → print bare semver and exit
+  if (rawArgs.includes('--version') || rawArgs.includes('-v')) {
+    console.log(__CLI_VERSION__);
+    return;
+  }
+
+  const KNOWN_COMMANDS = new Set(['analyze', 'lint', 'optimize', 'compact', 'config', 'help']);
   const [first = '', ...rest] = rawArgs;
 
   if (KNOWN_COMMANDS.has(first)) {
@@ -389,6 +476,9 @@ async function main(): Promise<void> {
         break;
       case 'compact':
         await cmdCompact(rest);
+        break;
+      case 'config':
+        await cmdConfig(rest);
         break;
       case 'help':
       default:

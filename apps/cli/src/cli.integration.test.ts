@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -101,6 +101,159 @@ describe('help', () => {
       env: { NO_COLOR: '1' },
     });
     expect(stdout).not.toMatch(/\u001b\[[0-9;]*m/);
+  });
+});
+
+// ─── version ─────────────────────────────────────────────────────────────────
+
+describe('version', () => {
+  it('exits 0 and prints bare semver with --version', () => {
+    const { exitCode, stdout } = runCli(['--version']);
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('exits 0 and prints bare semver with -v', () => {
+    const { exitCode, stdout } = runCli(['-v']);
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('matches apps/cli/package.json version exactly', async () => {
+    const pkg = JSON.parse(await readFile(resolve(REPO_ROOT, 'apps/cli/package.json'), 'utf8')) as {
+      version: string;
+    };
+    const { stdout } = runCli(['--version']);
+    expect(stdout.trim()).toBe(pkg.version);
+  });
+
+  it('help text contains the same version as package.json', async () => {
+    const pkg = JSON.parse(await readFile(resolve(REPO_ROOT, 'apps/cli/package.json'), 'utf8')) as {
+      version: string;
+    };
+    const { stdout } = runCli(['help']);
+    expect(stdout).toContain(`Version: ${pkg.version}`);
+  });
+});
+
+// ─── config set ──────────────────────────────────────────────────────────────
+
+describe('config set', () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'ctxc-config-'));
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  function runInDir(args: string[]): { exitCode: number; stdout: string; stderr: string } {
+    const result = spawnSync(process.execPath, [CLI, ...args], {
+      encoding: 'utf8',
+      env: process.env,
+      cwd: tmpDir,
+      timeout: 10_000,
+    });
+    return { exitCode: result.status ?? 1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+  }
+
+  it('exits 0 and creates config file for valid key/value', () => {
+    const { exitCode, stdout } = runInDir(['config', 'set', 'tokenizer.default', 'o200k_base']);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('tokenizer.default = o200k_base');
+  });
+
+  it('config file contains correct tokenizer.default after set', async () => {
+    runInDir(['config', 'set', 'tokenizer.default', 'o200k_base']);
+    const raw = await readFile(join(tmpDir, 'context-compiler.config.json'), 'utf8');
+    const parsed = JSON.parse(raw) as { tokenizer: { default: string } };
+    expect(parsed.tokenizer.default).toBe('o200k_base');
+  });
+
+  it('overwrites tokenizer.default without destroying other keys', async () => {
+    await writeFile(
+      join(tmpDir, 'context-compiler.config.json'),
+      JSON.stringify({ tokenizer: { default: 'char' }, lint: { warnings: { blockTooLong: 999 } } }, null, 2),
+    );
+    runInDir(['config', 'set', 'tokenizer.default', 'o200k_base']);
+    const raw = await readFile(join(tmpDir, 'context-compiler.config.json'), 'utf8');
+    const parsed = JSON.parse(raw) as {
+      tokenizer: { default: string };
+      lint: { warnings: { blockTooLong: number } };
+    };
+    expect(parsed.tokenizer.default).toBe('o200k_base');
+    expect(parsed.lint.warnings.blockTooLong).toBe(999);
+  });
+
+  it('exits 1 for unknown config key', () => {
+    const { exitCode, stderr } = runInDir(['config', 'set', 'unknown.key', 'value']);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('unknown config key');
+  });
+
+  it('exits 1 for invalid tokenizer.default value', () => {
+    const { exitCode, stderr } = runInDir(['config', 'set', 'tokenizer.default', 'bad']);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('invalid value');
+  });
+
+  it('exits 1 for unknown subcommand', () => {
+    const { exitCode, stderr } = runInDir(['config', 'get', 'tokenizer.default']);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('unknown config subcommand');
+  });
+
+  it('exits 1 with clear message on malformed existing JSON', async () => {
+    await writeFile(join(tmpDir, 'context-compiler.config.json'), '{ not valid json }');
+    const { exitCode, stderr } = runInDir(['config', 'set', 'tokenizer.default', 'char']);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('malformed JSON');
+  });
+
+  it('exits 1 with clear message when --config has no following value', () => {
+    const { exitCode, stderr } = runInDir(['config', 'set', 'tokenizer.default', 'char', '--config']);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('missing value for --config');
+  });
+
+  it('--config <path> writes to the specified file', async () => {
+    const customPath = join(tmpDir, 'custom.config.json');
+    const { exitCode } = runInDir(['config', 'set', 'tokenizer.default', 'o200k_base', '--config', customPath]);
+    expect(exitCode).toBe(0);
+    const raw = await readFile(customPath, 'utf8');
+    const parsed = JSON.parse(raw) as { tokenizer: { default: string } };
+    expect(parsed.tokenizer.default).toBe('o200k_base');
+  });
+
+  it('config file tokenizer.default takes effect over built-in default', async () => {
+    await writeFile(
+      join(tmpDir, 'context-compiler.config.json'),
+      JSON.stringify({ tokenizer: { default: 'o200k_base' } }, null, 2),
+    );
+    const result = spawnSync(process.execPath, [CLI, 'analyze', '--text', 'Be concise.', '--json'], {
+      encoding: 'utf8',
+      env: process.env,
+      cwd: tmpDir,
+      timeout: 10_000,
+    });
+    const parsed = JSON.parse(result.stdout) as { tokenizer: { id: string } };
+    expect(parsed.tokenizer.id).toBe('o200k_base');
+  });
+
+  it('--tokenizer flag overrides config file tokenizer.default', async () => {
+    await writeFile(
+      join(tmpDir, 'context-compiler.config.json'),
+      JSON.stringify({ tokenizer: { default: 'o200k_base' } }, null, 2),
+    );
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'analyze', '--text', 'Be concise.', '--json', '--tokenizer', 'char'],
+      { encoding: 'utf8', env: process.env, cwd: tmpDir, timeout: 10_000 },
+    );
+    const parsed = JSON.parse(result.stdout) as { tokenizer: { id: string } };
+    expect(parsed.tokenizer.id).toBe('char');
   });
 });
 

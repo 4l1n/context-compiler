@@ -91,7 +91,16 @@ ctxc compact --text "You are helpful. You are helpful." --tokenizer o200k_base
 ctxc analyze examples/basic-prompt.md --tokenizer char
 ```
 
-Or set it in config:
+Or use the built-in command to set it without editing JSON:
+
+```bash
+ctxc config set tokenizer.default o200k_base
+ctxc config set tokenizer.default char
+```
+
+This creates or updates `context-compiler.config.json` in the current directory. Existing config keys are preserved. Use `--config <path>` to target a specific config file.
+
+Or set it manually in config:
 
 ```json
 {
@@ -100,6 +109,11 @@ Or set it in config:
   }
 }
 ```
+
+Precedence (highest to lowest):
+1. `--tokenizer` CLI flag
+2. `tokenizer.default` in `context-compiler.config.json`
+3. Built-in default (`char`)
 
 Notes:
 - `char` is stable and lightweight.

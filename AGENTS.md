@@ -32,6 +32,9 @@ pnpm cc optimize examples/basic-prompt.md --dry-run --only remove-exact-duplicat
 pnpm cc optimize examples --dry-run --except truncate-tool-output
 pnpm cc analyze examples/basic-prompt.md --tokenizer o200k_base
 pnpm cc compact examples/basic-prompt.md --tokenizer o200k_base
+pnpm cc config set tokenizer.default o200k_base
+pnpm cc config set tokenizer.default char
+pnpm cc --version
 pnpm cc analyze examples/protected-prompt.md
 pnpm cc analyze examples --include "*.md"
 pnpm cc lint examples --exclude protected-prompt.md
@@ -92,6 +95,34 @@ buildReport(...)     -> AnalysisReport
 checkWarnings(...)   -> AnalysisIssue[]
 runOptimize(...)     -> OptimizationResult
 ```
+
+## Release
+
+Releases are manual. The release script bumps the version, builds, and verifies the binary.
+
+```bash
+# Default: bump patch version (e.g. 0.2.1 → 0.2.2)
+node scripts/release-cli.mjs
+
+# Bump minor or major
+node scripts/release-cli.mjs minor
+node scripts/release-cli.mjs major
+
+# Show help without side effects
+node scripts/release-cli.mjs --help
+```
+
+After the script completes and verifies successfully:
+
+```bash
+git add apps/cli/package.json package.json
+git commit -m "chore: release cli v<version>"
+git tag v<version>
+git push && git push --tags
+cd apps/cli && npm publish --access public
+```
+
+The script exits 1 if the compiled binary's `--version` output does not match the bumped version, or if the bundle still contains the stale old version string.
 
 ## TypeScript Notes
 
