@@ -21,19 +21,30 @@ It helps you understand what is inside a prompt/context file before you send it 
 - It does not rewrite semantic intent.
 - It does not install plugins or integrations.
 - It does not include a frontend.
-- It is not published to npm yet; this release is prepared for a GitHub tag.
 
-## Install Status
+## Install
 
-`context-compiler` is not published to npm yet.
-Use one of the local development flows below:
+Install package `context-compiler-cli`:
 
-- in-repo commands via `pnpm cc`
-- source-linked global commands via `pnpm --filter @context-compiler/cli link --global`
+```bash
+npm install -g context-compiler-cli
+```
+
+Use `ctxc` as the primary command:
+
+```bash
+ctxc --help
+```
+
+`context-compiler` is kept as a compatibility alias:
+
+```bash
+context-compiler --help
+```
 
 ## Quick Start
 
-After source-linking (see below), use `ctxc` as the short command:
+Use `ctxc` as the short command:
 
 ```bash
 # Analyze raw text
@@ -84,9 +95,9 @@ node apps/cli/dist/ctxc.js --help     # direct node invocation
 
 `optimize` does not write by default. Use `--write` only when you want to replace the input file.
 
-## Source-linked global install (development)
+## Source-Linked Global Install (Development)
 
-This is a **development/source-linked install** for package `@context-compiler/cli` — the CLI
+This is a **development/source-linked install** for package `context-compiler-cli` — the CLI
 binary is symlinked to the cloned repo. You must keep the repo on disk for the install to work.
 The linked bin map exposes both `ctxc` (short) and `context-compiler` (compatibility name).
 
@@ -95,7 +106,7 @@ git clone https://github.com/4l1n/context-compiler.git
 cd context-compiler
 pnpm install
 pnpm build
-pnpm --filter @context-compiler/cli link --global
+pnpm --filter context-compiler-cli link --global
 ```
 
 After linking, `ctxc` and `context-compiler` are available anywhere on the machine:
@@ -109,12 +120,12 @@ context-compiler @prompt.md
 To remove:
 
 ```bash
-pnpm --filter @context-compiler/cli unlink --global
+pnpm --filter context-compiler-cli unlink --global
 ```
 
 ## Commands
 
-`pnpm cc` is an in-repo convenience alias. After source-linked install, replace `pnpm cc` with
+`pnpm cc` is an in-repo convenience alias. After npm install or source-linked install, replace `pnpm cc` with
 `ctxc` (short) or `context-compiler` (compatibility name) in any command below.
 
 ```bash

@@ -50,9 +50,9 @@ cd apps/cli && pnpm exec vitest run src/cli.integration.test.ts
 
 # Source-linked global install (optional, development/source-linked — not a standalone binary)
 # pnpm cc is an in-repo alias; after linking, context-compiler is the installed command name
-pnpm --filter @context-compiler/cli link --global
+pnpm --filter context-compiler-cli link --global
 context-compiler help
-pnpm --filter @context-compiler/cli unlink --global
+pnpm --filter context-compiler-cli unlink --global
 ```
 
 ## Architecture Rules

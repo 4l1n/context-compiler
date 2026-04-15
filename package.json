@@ -1,5 +1,5 @@
 {
-  "name": "context-compiler",
+  "name": "context-compiler-root",
   "private": true,
   "version": "0.1.0",
   "description": "Local-first CLI for inspecting, linting, and deterministically compacting prompt context.",
