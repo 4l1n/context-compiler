@@ -100,6 +100,18 @@ echo "Be concise. Be concise." | pnpm cc lint --stdin
 pnpm cc lint examples/basic-prompt.md --json
 ```
 
+### Lint fail-on
+
+`--fail-on error|warning|info` exits 2 if any issue at or above the threshold exists. Counts both analysis warnings and lint-rule issues combined.
+
+```bash
+pnpm cc lint examples/basic-prompt.md --fail-on error   # exit 2 if any errors
+pnpm cc lint examples --fail-on warning                 # exit 2 if any warnings or errors
+pnpm cc lint examples/basic-prompt.md --fail-on info    # exit 2 if any issues at all
+```
+
+Severity threshold is at-or-above: `--fail-on warning` fails on warnings **and** errors.
+
 ## Optimize
 
 `optimize` applies deterministic transforms and reports every change as `remove` or `replace` with a reason and token delta.
@@ -145,6 +157,34 @@ pnpm cc optimize examples/basic-prompt.md --dry-run --json
 `--diff` adds compact before/after snippets for each applied change. `--json` takes precedence when both flags are provided.
 
 `--only` and `--except` accept comma-separated transform IDs. They are mutually exclusive, validate IDs before running, and apply to file, text, stdin, and directory inputs.
+
+### Optimize check mode
+
+`--check` exits 2 if any file or content would change, without writing anything. Compatible with `--diff`. Mutually exclusive with `--write`.
+
+```bash
+pnpm cc optimize examples/basic-prompt.md --check        # exit 2 if changes exist
+pnpm cc optimize examples --check                        # exit 2 if any file would change
+pnpm cc optimize examples --check --diff                 # show changes and exit 2
+echo "Be concise. Be concise." | pnpm cc optimize --stdin --check
+```
+
+### Analyze token budget
+
+`--max-tokens <n>` exits 2 if any file exceeds the given token count. Budget is per-file (not aggregate).
+
+```bash
+pnpm cc analyze examples/basic-prompt.md --max-tokens 500
+pnpm cc analyze examples --max-tokens 200   # fails if any single file exceeds 200 tokens
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Error — usage error, validation error, or runtime failure |
+| 2 | Check failure — `--fail-on` threshold exceeded, `--check` finds pending changes, or `--max-tokens` exceeded |
 
 ## Directory Mode
 

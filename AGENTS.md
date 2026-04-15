@@ -31,6 +31,12 @@ pnpm cc analyze examples --include "*.md"
 pnpm cc lint examples --exclude protected-prompt.md
 pnpm cc optimize examples --dry-run --include "basic-prompt.md"
 pnpm cc optimize examples --dry-run --exclude "protected-prompt.md"
+pnpm cc lint examples/basic-prompt.md --fail-on error
+pnpm cc lint examples --fail-on warning
+pnpm cc optimize examples/basic-prompt.md --check
+pnpm cc optimize examples --check --diff
+pnpm cc analyze examples/basic-prompt.md --max-tokens 500
+pnpm cc analyze examples --max-tokens 200
 
 # Single package
 pnpm --filter @context-compiler/core build

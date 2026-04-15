@@ -51,6 +51,24 @@ echo "Be concise. Be concise." | pnpm cc optimize --stdin --dry-run
 
 `--text` and `--stdin` are single-input modes; directory mode uses a positional path.
 
+Use check mode for CI enforcement:
+
+```bash
+# Fail (exit 2) if any lint issues exist at or above the threshold
+pnpm cc lint examples/basic-prompt.md --fail-on error
+pnpm cc lint examples --fail-on warning
+
+# Fail (exit 2) if any file would change under optimize
+pnpm cc optimize examples/basic-prompt.md --check
+pnpm cc optimize examples --check --diff
+
+# Fail (exit 2) if any file exceeds the token budget (per file)
+pnpm cc analyze examples/basic-prompt.md --max-tokens 500
+pnpm cc analyze examples --max-tokens 200
+```
+
+Exit codes: `0` = success, `1` = error, `2` = check failure.
+
 Filter which files are processed in directory mode:
 
 ```bash

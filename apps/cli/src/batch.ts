@@ -312,7 +312,7 @@ async function runForFile<T>(filePath: string, command: string, fn: () => Promis
   }
 }
 
-function countIssuesBySeverity(issues: AnalysisIssue[]): IssueSeverityCounts {
+export function countIssuesBySeverity(issues: AnalysisIssue[]): IssueSeverityCounts {
   return issues.reduce<IssueSeverityCounts>(
     (counts, issue) => {
       counts[issue.severity]++;
