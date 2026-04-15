@@ -26,6 +26,8 @@ import {
 import { isFileLikeInput, isPathInput, resolveCliInput } from './input.js';
 import { parseOptimizeControls } from './optimize-controls.js';
 import { parseDirectoryFilters } from './directory-filters.js';
+import { hasDirectCompactionSignal } from './compaction-signals.js';
+import { shouldUseColor } from './style.js';
 import {
   CheckFailureError,
   assertLintPass,
@@ -36,50 +38,58 @@ import {
 } from './check.js';
 
 function printHelp(): void {
-  console.log(`context-compiler — analyze and optimize LLM prompts
+  console.log(`context-compiler — deterministic prompt/context compaction and inspection
 
-Simple mode (default: analyze):
-  ctxc @<file>            Analyze a file
-  ctxc @<directory>       Analyze all files in a directory
-  ctxc "<text>"           Analyze raw text
-  cat file | ctxc         Analyze piped input
+Start Here:
+  ctxc compact --text "You are helpful. You are helpful."
+  ctxc compact @prompt.md
+  cat prompt.md | ctxc compact --stdin
 
-Advanced mode:
-  ctxc <command> [options]
-
-Commands:
-  analyze  <input>  Structural analysis: blocks, tokens, warnings
-  lint     <input>  Lint rules: detect issues in prompt structure
-  optimize <input>  Apply safe deterministic transforms to reduce tokens
-  compact  <input>  Preview deterministic compacted output (no file writes)
+Choose A Command:
+  compact  <input>  Front door: preview deterministic compaction and resulting text
+  analyze  <input>  Inspect structure, token counts, and warnings
+  lint     <input>  Detect prompt/context debt with deterministic rules
+  optimize <input>  Advanced pipeline: dry-run/write/check and transform controls
   help              Show this help
 
-Options:
-  -h, --help     Show this help
-  --json         Output as JSON
-  --config       Path to config JSON file
-  --tokenizer    Tokenizer override: char | o200k_base
-  --text         Use raw text input instead of a file or directory path
-  --stdin        Read input from stdin instead of a file or directory path
-  --dry-run      Show what would change without writing (optimize only)
-  --write        Write optimized content back to the file (optimize only)
-  --check        Fail (exit 2) if any file would change without writing (optimize only)
-  --diff         Show compact before/after snippets (optimize/compact)
-  --only         Run only the listed optimize transform IDs (optimize/compact)
-  --except       Run all default optimize transforms except the listed IDs (optimize/compact)
-  --fail-on      Exit 2 if any lint issue at or above the given severity exists (lint only)
-                 Values: error | warning | info
-                 Counts both analysis warnings and lint-rule issues.
-  --max-tokens   Exit 2 if any file exceeds the token budget (analyze only, per file)
-  --include      Include only files matching patterns (comma-separated, directory mode only)
-  --exclude      Exclude files matching patterns (comma-separated, directory mode only)
+Common Inputs And Output:
+  ctxc @<file>            Simple mode analyze for a file
+  ctxc @<directory>       Simple mode analyze for a directory
+  ctxc "<text>"           Simple mode analyze for raw text
+  cat file | ctxc         Simple mode analyze for piped input
+  --text <raw>            Explicit raw content input
+  --stdin                 Explicit stdin input
+  --json                  Machine-readable output
+  --config <path>         Explicit config file path
 
-Exit codes:
+Compaction Controls (compact/optimize):
+  --diff                  Show compact before/after snippets
+  --only <id,id>          Run only selected transform IDs
+  --except <id,id>        Exclude selected transform IDs
+
+Optimize-Only Pipeline Controls:
+  --dry-run               Preview without writing
+  --write                 Apply changes to file/directory input
+  --check                 Exit 2 when changes would be applied
+
+Quality Gates:
+  --fail-on error|warning|info    Lint exit threshold (lint only)
+  --max-tokens <n>                Per-file token budget gate (analyze only)
+
+Directory Targeting:
+  --include <patterns>    Include only matching files
+  --exclude <patterns>    Exclude matching files
+
+Tokenizer:
+  --tokenizer char|o200k_base
+  char is fast/simple. o200k_base is more realistic for its model family.
+
+Exit Codes:
   0  Success
-  1  Error (usage error, validation error, runtime failure)
-  2  Check failure (--fail-on threshold exceeded, --check finds changes, --max-tokens exceeded)
+  1  Error (usage, validation, runtime)
+  2  Check failure (--fail-on, --check, --max-tokens)
 
-Version: 0.1.0
+Version: 0.2.0
 `);
 }
 
@@ -87,6 +97,7 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
   try {
     const parsed = parseArgs(argv);
     const jsonFlag = parsed.flags.has('json');
+    const useColor = shouldUseColor();
     const filters = parseDirectoryFilters(parsed);
     const maxTokensValue = parsed.options.get('max-tokens');
     const maxTokens = maxTokensValue !== undefined ? parseMaxTokens(maxTokensValue) : undefined;
@@ -104,7 +115,9 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
 
     if (input.kind === 'directory') {
       const result = await analyzeDirectory(input.path, config, { filters });
-      console.log(jsonFlag ? renderAnalyzeDirectoryJson(result) : renderAnalyzeDirectoryText(result));
+      console.log(
+        jsonFlag ? renderAnalyzeDirectoryJson(result) : renderAnalyzeDirectoryText(result, { useColor }),
+      );
       if (maxTokens !== undefined) {
         assertWithinBudget(
           result.files.map(r => ({ path: r.path, totalTokens: r.totalTokens })),
@@ -116,7 +129,24 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
     }
 
     const report = analyzeInput(input, config);
-    console.log(jsonFlag ? renderJson(report) : renderText(report));
+    const showCompactHint =
+      !jsonFlag &&
+      process.stdout.isTTY === true &&
+      hasDirectCompactionSignal(report);
+    const hintCommand =
+      input.kind === 'file'
+        ? `run \`ctxc compact ${input.path}\``
+        : input.kind === 'text'
+          ? 'run `ctxc compact --text "<your text>"`'
+          : 'run `cat ... | ctxc compact --stdin`';
+    console.log(
+      jsonFlag
+        ? renderJson(report)
+        : renderText(report, {
+            useColor,
+            compactHint: showCompactHint ? hintCommand : undefined,
+          }),
+    );
     if (maxTokens !== undefined) {
       assertWithinBudget([{ path: input.path, totalTokens: report.totalTokens }], maxTokens, input.path);
     }
@@ -130,6 +160,7 @@ async function cmdLint(argv: string[]): Promise<void> {
   try {
     const parsed = parseArgs(argv);
     const jsonFlag = parsed.flags.has('json');
+    const useColor = shouldUseColor();
     const filters = parseDirectoryFilters(parsed);
     const failOnValue = parsed.options.get('fail-on');
     const failOn = failOnValue !== undefined ? parseFailOnSeverity(failOnValue) : undefined;
@@ -147,7 +178,7 @@ async function cmdLint(argv: string[]): Promise<void> {
 
     if (input.kind === 'directory') {
       const result = await lintDirectory(input.path, config, { filters });
-      console.log(jsonFlag ? renderLintDirectoryJson(result) : renderLintDirectoryText(result));
+      console.log(jsonFlag ? renderLintDirectoryJson(result) : renderLintDirectoryText(result, { useColor }));
       if (failOn !== undefined) {
         assertLintPass(result.summary.issuesBySeverity, failOn, input.path);
       }
@@ -156,7 +187,7 @@ async function cmdLint(argv: string[]): Promise<void> {
 
     const report = analyzeInput(input, config);
     const lintResult = lintReport(report, config);
-    console.log(jsonFlag ? renderLintJson(report, lintResult) : renderLintText(report, lintResult));
+    console.log(jsonFlag ? renderLintJson(report, lintResult) : renderLintText(report, lintResult, { useColor }));
     if (failOn !== undefined) {
       const counts = countIssuesBySeverity([...report.issues, ...lintResult.issues]);
       assertLintPass(counts, failOn, input.path);
@@ -171,6 +202,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
   try {
     const parsed = parseArgs(argv);
     const jsonFlag = parsed.flags.has('json');
+    const useColor = shouldUseColor();
     const dryRun = parsed.flags.has('dry-run');
     const diff = parsed.flags.has('diff');
     const write = parsed.flags.has('write');
@@ -204,7 +236,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
       console.log(
         jsonFlag
           ? renderOptimizeDirectoryJson(result)
-          : renderOptimizeDirectoryText(result, { write: shouldWrite, diff }),
+          : renderOptimizeDirectoryText(result, { write: shouldWrite, diff, useColor }),
       );
       if (check) {
         assertOptimizeNoChanges(result.summary.filesChanged, input.path, 'file');
@@ -234,6 +266,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
           diff,
           showOptimizedContent: input.kind === 'text' || input.kind === 'stdin',
           command: 'optimize',
+          useColor,
         }),
       );
     }
@@ -252,6 +285,7 @@ async function cmdCompact(argv: string[]): Promise<void> {
   try {
     const parsed = parseArgs(argv);
     const jsonFlag = parsed.flags.has('json');
+    const useColor = shouldUseColor();
     const diff = parsed.flags.has('diff');
     const controls = parseOptimizeControls(parsed, KNOWN_TRANSFORM_IDS);
     const filters = parseDirectoryFilters(parsed);
@@ -279,7 +313,7 @@ async function cmdCompact(argv: string[]): Promise<void> {
       console.log(
         jsonFlag
           ? renderOptimizeDirectoryJson(result)
-          : renderOptimizeDirectoryText(result, { write: false, diff, command: 'compact' }),
+          : renderOptimizeDirectoryText(result, { write: false, diff, command: 'compact', useColor }),
       );
       return;
     }
@@ -300,6 +334,7 @@ async function cmdCompact(argv: string[]): Promise<void> {
           diff,
           showOptimizedContent: true,
           command: 'compact',
+          useColor,
         }),
       );
     }

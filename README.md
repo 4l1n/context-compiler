@@ -62,10 +62,10 @@ cat prompt.md | ctxc
 
 | Command | Purpose | Writes files by default |
 |---|---|---|
-| `ctxc analyze` | Block/token analysis + warnings | No |
-| `ctxc lint` | Lint rules over analyzed blocks | No |
-| `ctxc optimize` | Deterministic transform pipeline | No (`--write` required) |
-| `ctxc compact` | User-friendly compacted preview | No (preview-only) |
+| `ctxc compact` | Front door: preview deterministic compaction and see resulting text | No (preview-only) |
+| `ctxc analyze` | Inspect structure, token counts, and warnings | No |
+| `ctxc lint` | Detect prompt/context debt with deterministic rules | No |
+| `ctxc optimize` | Advanced pipeline workflow (`--write`, `--check`, transform controls) | No (`--write` required) |
 
 `compact` supports file, directory, `--text`, and `--stdin` like other commands.
 
@@ -77,6 +77,8 @@ echo "You are helpful. You are helpful." | ctxc compact --stdin
 ```
 
 `compact` reuses optimize results and JSON shape; it does not introduce a separate output schema.
+
+`optimize` is intentionally more operational than `compact`. Use `compact` for quick preview and readability; use `optimize` when you need pipeline controls, check mode, and explicit write workflows.
 
 ## Tokenizer Selection
 

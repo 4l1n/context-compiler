@@ -43,8 +43,9 @@ describe('directory batch renderers', () => {
     };
 
     const text = renderAnalyzeDirectoryText(result);
+    expect(text).toContain('Per-file results');
+    expect(text).toContain('Aggregate summary');
     expect(text).toContain('Files processed: 2');
-    expect(text).toContain('Total blocks: 3');
 
     const parsed = JSON.parse(renderAnalyzeDirectoryJson(result)) as AnalyzeDirectoryResult;
     expect(parsed.kind).toBe('directory');
@@ -68,6 +69,8 @@ describe('directory batch renderers', () => {
     };
 
     const text = renderLintDirectoryText(result);
+    expect(text).toContain('Per-file results');
+    expect(text).toContain('Aggregate summary');
     expect(text).toContain('Total issues: 1');
     expect(text).toContain('error:duplicated-instruction');
 
@@ -78,6 +81,8 @@ describe('directory batch renderers', () => {
   it('renders optimize directory non-writing status', () => {
     const result = optimizeDirectoryResult();
     const text = renderOptimizeDirectoryText(result);
+    expect(text).toContain('Per-file results');
+    expect(text).toContain('Aggregate summary');
     expect(text).toContain('Files changed: 1');
     expect(text).toContain('Files not written. Use --write to apply directory changes.');
   });

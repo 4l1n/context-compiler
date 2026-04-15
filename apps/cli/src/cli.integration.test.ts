@@ -22,10 +22,14 @@ const CLI = resolve(REPO_ROOT, 'apps/cli/dist/ctxc.js');
 
 type CliResult = { exitCode: number; stdout: string; stderr: string };
 
-function runCli(args: string[], opts: { input?: string } = {}): CliResult {
+function runCli(args: string[], opts: { input?: string; env?: Record<string, string | undefined> } = {}): CliResult {
   const result = spawnSync(process.execPath, [CLI, ...args], {
     encoding: 'utf8',
     input: opts.input,
+    env: {
+      ...process.env,
+      ...opts.env,
+    },
     cwd: REPO_ROOT,
     timeout: 10_000,
   });
@@ -42,25 +46,25 @@ describe('help', () => {
   it('exits 0 and shows usage when command is "help"', () => {
     const { exitCode, stdout } = runCli(['help']);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('Commands:');
+    expect(stdout).toContain('Choose A Command:');
   });
 
   it('exits 0 and shows usage with --help flag', () => {
     const { exitCode, stdout } = runCli(['--help']);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('Commands:');
+    expect(stdout).toContain('Choose A Command:');
   });
 
   it('exits 0 and shows usage with -h flag', () => {
     const { exitCode, stdout } = runCli(['-h']);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('Commands:');
+    expect(stdout).toContain('Choose A Command:');
   });
 
   it('exits 0 and shows usage with --help anywhere in args', () => {
     const { exitCode, stdout } = runCli(['analyze', '--help']);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('Commands:');
+    expect(stdout).toContain('Choose A Command:');
   });
 
   // In an interactive terminal (isTTY=true), no args → shows help.
@@ -69,6 +73,34 @@ describe('help', () => {
   it('exits 0 when no args are provided', () => {
     const { exitCode } = runCli([]);
     expect(exitCode).toBe(0);
+  });
+
+  it('shows compact before analyze/lint/optimize in command list', () => {
+    const { stdout } = runCli(['--help']);
+    const compactIdx = stdout.indexOf('compact  <input>');
+    const analyzeIdx = stdout.indexOf('analyze  <input>');
+    const optimizeIdx = stdout.indexOf('optimize <input>');
+    expect(compactIdx).toBeGreaterThan(-1);
+    expect(compactIdx).toBeLessThan(analyzeIdx);
+    expect(compactIdx).toBeLessThan(optimizeIdx);
+  });
+
+  it('keeps compact and optimize roles clearly distinct', () => {
+    const { stdout } = runCli(['--help']);
+    expect(stdout).toContain('Front door: preview deterministic compaction');
+    expect(stdout).toContain('Advanced pipeline: dry-run/write/check');
+  });
+
+  it('does not emit ANSI styling in non-TTY help output', () => {
+    const { stdout } = runCli(['--help']);
+    expect(stdout).not.toMatch(/\u001b\[[0-9;]*m/);
+  });
+
+  it('does not emit ANSI styling when NO_COLOR is set', () => {
+    const { stdout } = runCli(['compact', '--text', 'You are helpful. You are helpful.'], {
+      env: { NO_COLOR: '1' },
+    });
+    expect(stdout).not.toMatch(/\u001b\[[0-9;]*m/);
   });
 });
 
@@ -128,7 +160,7 @@ describe('analyze', () => {
     ]);
     expect(exitCode).toBe(0);
     expect(stderr).toBe('');
-    expect(stdout).toContain('Tokenizer: o200k_base');
+    expect(stdout).toContain('(o200k_base)');
   });
 
   it('lets --tokenizer override config tokenizer selection', () => {
@@ -151,6 +183,21 @@ describe('analyze', () => {
     const { exitCode, stderr } = runCli(['analyze', 'examples/basic-prompt.md', '--tokenizer', 'bad']);
     expect(exitCode).toBe(1);
     expect(stderr).toContain('--tokenizer must be');
+  });
+
+  it('does not show compact hint in non-interactive output', () => {
+    const { stdout } = runCli(['analyze', '--text', 'You are helpful. You are helpful.']);
+    expect(stdout).not.toContain('Next step:');
+  });
+
+  it('does not show compact hint without direct compaction signal', () => {
+    const { stdout } = runCli(['analyze', '--text', 'Be concise.']);
+    expect(stdout).not.toContain('Next step:');
+  });
+
+  it('does not show compact hint in --json mode', () => {
+    const { stdout } = runCli(['analyze', '--text', 'You are helpful. You are helpful.', '--json']);
+    expect(stdout).not.toContain('Next step:');
   });
 });
 
@@ -269,7 +316,7 @@ describe('optimize', () => {
     ]);
     expect(exitCode).toBe(0);
     expect(stderr).toBe('');
-    expect(stdout).toContain('Compacted text:');
+    expect(stdout).toContain('Result text:');
   });
 });
 
@@ -303,7 +350,7 @@ describe('compact', () => {
     ]);
     expect(exitCode).toBe(0);
     expect(stderr).toBe('');
-    expect(stdout).toContain('Compacted text:');
+    expect(stdout).toContain('Result text:');
     expect(stdout).toContain('You are helpful.');
   });
 
@@ -311,7 +358,7 @@ describe('compact', () => {
     const { exitCode, stdout, stderr } = runCli(['compact', '--text', 'Be concise.']);
     expect(exitCode).toBe(0);
     expect(stderr).toBe('');
-    expect(stdout).toContain('No deterministic compaction found.');
+    expect(stdout).toContain('Result: no deterministic compaction found.');
   });
 
   it('supports --tokenizer override', () => {
@@ -412,6 +459,11 @@ describe('simple mode', () => {
     expect(exitCode).toBe(0);
     expect(stderr).toBe('');
     expect(stdout.length).toBeGreaterThan(0);
+  });
+
+  it('keeps piped output free of ANSI styling', () => {
+    const { stdout } = runCli([], { input: 'Be concise.' });
+    expect(stdout).not.toMatch(/\u001b\[[0-9;]*m/);
   });
 
   it('passes flags through to analyze (e.g. --json)', () => {

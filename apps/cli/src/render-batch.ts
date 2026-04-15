@@ -6,16 +6,24 @@ import type {
   OptimizeDirectoryResult,
 } from './batch.js';
 import { formatTransformSelection } from './render-optimize.js';
+import { createStyler } from './style.js';
 
 const HR = '─'.repeat(52);
 
-export function renderAnalyzeDirectoryText(result: AnalyzeDirectoryResult): string {
+export function renderAnalyzeDirectoryText(
+  result: AnalyzeDirectoryResult,
+  options: { useColor?: boolean } = {},
+): string {
   const lines: string[] = [];
-  lines.push(`\nAnalysis: ${result.path}`);
-  lines.push(HR);
+  const style = createStyler({ useColor: options.useColor });
+  lines.push(`\n${style.heading(`Analysis: ${result.path}`)}`);
+  lines.push(style.muted(HR));
+  lines.push(`Result: analyzed ${result.summary.filesProcessed} file${result.summary.filesProcessed === 1 ? '' : 's'}.`);
+  lines.push(`Totals: ${result.summary.totalTokens} tokens, ${result.summary.totalBlocks} blocks, ${result.summary.warningCount} warnings.`);
   const filterLine = formatActiveFilters(result.filters);
   if (filterLine) lines.push(filterLine);
-  lines.push('Files:');
+  lines.push('');
+  lines.push(style.label('Per-file results:'));
 
   for (const report of result.files) {
     lines.push(
@@ -24,7 +32,7 @@ export function renderAnalyzeDirectoryText(result: AnalyzeDirectoryResult): stri
   }
 
   lines.push('');
-  lines.push('Summary:');
+  lines.push(style.label('Aggregate summary:'));
   lines.push(`  Files processed: ${result.summary.filesProcessed}`);
   lines.push(`  Total blocks: ${result.summary.totalBlocks}`);
   lines.push(`  Total tokens: ${result.summary.totalTokens}`);
@@ -37,13 +45,19 @@ export function renderAnalyzeDirectoryJson(result: AnalyzeDirectoryResult): stri
   return JSON.stringify(result, null, 2);
 }
 
-export function renderLintDirectoryText(result: LintDirectoryResult): string {
+export function renderLintDirectoryText(
+  result: LintDirectoryResult,
+  options: { useColor?: boolean } = {},
+): string {
   const lines: string[] = [];
-  lines.push(`\nLint: ${result.path}`);
-  lines.push(HR);
+  const style = createStyler({ useColor: options.useColor });
+  lines.push(`\n${style.heading(`Lint: ${result.path}`)}`);
+  lines.push(style.muted(HR));
+  lines.push(`Result: ${result.summary.totalIssues} total issue${result.summary.totalIssues === 1 ? '' : 's'}.`);
   const filterLine = formatActiveFilters(result.filters);
   if (filterLine) lines.push(filterLine);
-  lines.push('Files:');
+  lines.push('');
+  lines.push(style.label('Per-file results:'));
 
   for (const file of result.files) {
     const analysisCount = file.report.issues.length;
@@ -59,7 +73,7 @@ export function renderLintDirectoryText(result: LintDirectoryResult): string {
   }
 
   lines.push('');
-  lines.push('Summary:');
+  lines.push(style.label('Aggregate summary:'));
   lines.push(`  Files processed: ${result.summary.filesProcessed}`);
   lines.push(`  Total issues: ${result.summary.totalIssues}`);
   lines.push(
@@ -75,20 +89,25 @@ export function renderLintDirectoryJson(result: LintDirectoryResult): string {
 
 export function renderOptimizeDirectoryText(
   result: OptimizeDirectoryResult,
-  options: { write?: boolean; diff?: boolean; command?: 'optimize' | 'compact' } = {},
+  options: { write?: boolean; diff?: boolean; command?: 'optimize' | 'compact'; useColor?: boolean } = {},
 ): string {
   const lines: string[] = [];
+  const style = createStyler({ useColor: options.useColor });
   const command = options.command ?? 'optimize';
   const title = command === 'compact' ? 'Compact' : 'Optimize';
-  lines.push(`\n${title}: ${result.path}`);
-  lines.push(HR);
+  lines.push(`\n${style.heading(`${title}: ${result.path}`)}`);
+  lines.push(style.muted(HR));
+  lines.push(
+    `Result: ${result.summary.filesChanged}/${result.summary.filesProcessed} files changed, ${result.summary.totalSavings} tokens saved.`,
+  );
   const filterLine = formatActiveFilters(result.filters);
   if (filterLine) lines.push(filterLine);
   const transformSelectionLine = formatTransformSelection(result.transformSelection);
   if (transformSelectionLine) {
     lines.push(transformSelectionLine);
   }
-  lines.push('Files:');
+  lines.push('');
+  lines.push(style.label('Per-file results:'));
 
   for (const file of result.files) {
     if (file.appliedChanges.length === 0) {
@@ -110,7 +129,7 @@ export function renderOptimizeDirectoryText(
   }
 
   lines.push('');
-  lines.push('Summary:');
+  lines.push(style.label('Aggregate summary:'));
   lines.push(`  Files processed: ${result.summary.filesProcessed}`);
   lines.push(`  Files changed: ${result.summary.filesChanged}`);
   lines.push(`  Original tokens: ${result.summary.totalOriginalTokens}`);
@@ -123,8 +142,8 @@ export function renderOptimizeDirectoryText(
   } else {
     lines.push(
       command === 'compact'
-        ? '  Preview only. Files were not written.'
-        : '  Files not written. Use --write to apply directory changes.',
+        ? `  ${style.muted('Preview only. Files were not written.')}`
+        : `  ${style.muted('Files not written. Use --write to apply directory changes.')}`,
     );
   }
 

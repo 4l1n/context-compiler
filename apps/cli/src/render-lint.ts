@@ -1,5 +1,6 @@
 import type { AnalysisReport, AnalysisIssue } from '@context-compiler/core';
 import type { LintResult } from '@context-compiler/rules';
+import { createStyler } from './style.js';
 
 const SEVERITY_ICON: Record<string, string> = {
   error: '✗',
@@ -11,21 +12,27 @@ const SEVERITY_ICON: Record<string, string> = {
  * Human-readable terminal output for the lint command.
  * Analysis warnings and lint issues are shown as distinct labeled sections.
  */
-export function renderLintText(report: AnalysisReport, result: LintResult): string {
+export function renderLintText(
+  report: AnalysisReport,
+  result: LintResult,
+  options: { useColor?: boolean } = {},
+): string {
   const lines: string[] = [];
+  const style = createStyler({ useColor: options.useColor });
   const hr = '─'.repeat(52);
 
-  lines.push(`\nLint: ${report.path}`);
-  lines.push(hr);
-  lines.push(`Rules  : ${result.rulesRun.join(', ')}`);
-  lines.push(`Blocks : ${report.totalBlocks}  Tokens: ${report.totalTokens}`);
+  lines.push(`\n${style.heading(`Lint: ${report.path}`)}`);
+  lines.push(style.muted(hr));
+  lines.push(`Result : ${result.issues.length} lint issue${result.issues.length === 1 ? '' : 's'}, ${report.issues.length} analysis warning${report.issues.length === 1 ? '' : 's'}.`);
+  lines.push(`Tokens : ${report.totalTokens}  Blocks: ${report.totalBlocks}`);
   if (report.tokenizer) {
     lines.push(`Tokenizer: ${report.tokenizer.id}`);
   }
+  lines.push(`Rules  : ${result.rulesRun.join(', ')}`);
 
   // --- Analysis warnings ---
   lines.push('');
-  lines.push(`Analysis warnings (${report.issues.length}):`);
+  lines.push(style.label(`Analysis warnings (${report.issues.length}):`));
   if (report.issues.length === 0) {
     lines.push('  ✓ none');
   } else {
@@ -36,7 +43,7 @@ export function renderLintText(report: AnalysisReport, result: LintResult): stri
 
   // --- Lint issues ---
   lines.push('');
-  lines.push(`Lint issues (${result.issues.length}):`);
+  lines.push(style.label(`Lint issues (${result.issues.length}):`));
   if (result.issues.length === 0) {
     lines.push('  ✓ none');
   } else {

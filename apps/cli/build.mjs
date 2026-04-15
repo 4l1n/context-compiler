@@ -25,5 +25,4 @@ await esbuild.build({
 await chmod('dist/ctxc.js', 0o755);
 
 // Copy metadata files to the package root so they are included in the published artifact
-await cp(join(rootDir, 'README.md'), join(__dirname, 'README.md'));
 await cp(join(rootDir, 'LICENSE'), join(__dirname, 'LICENSE'));

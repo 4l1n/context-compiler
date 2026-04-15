@@ -1,5 +1,6 @@
 import { isProtectedBlock } from '@context-compiler/core';
 import type { AnalysisReport } from '@context-compiler/core';
+import { createStyler } from './style.js';
 
 const SEVERITY_ICON: Record<string, string> = {
   error: '✗',
@@ -7,23 +8,27 @@ const SEVERITY_ICON: Record<string, string> = {
   info: 'i',
 };
 
+export type AnalyzeRenderOptions = {
+  useColor?: boolean;
+  compactHint?: string;
+};
+
 /**
  * Human-readable terminal output.
  */
-export function renderText(report: AnalysisReport): string {
+export function renderText(report: AnalysisReport, options: AnalyzeRenderOptions = {}): string {
   const lines: string[] = [];
+  const style = createStyler({ useColor: options.useColor });
   const hr = '─'.repeat(52);
 
-  lines.push(`\nAnalysis: ${report.path}`);
-  lines.push(hr);
-  lines.push(`Blocks : ${report.totalBlocks}`);
-  lines.push(`Tokens : ${report.totalTokens}`);
-  if (report.tokenizer) {
-    lines.push(`Tokenizer: ${report.tokenizer.id}`);
-  }
+  lines.push(`\n${style.heading(`Analysis: ${report.path}`)}`);
+  lines.push(style.muted(hr));
+  lines.push(`Tokens : ${report.totalTokens}${report.tokenizer ? `  (${report.tokenizer.id})` : ''}`);
+  lines.push(`Blocks : ${report.totalBlocks}  Warnings: ${report.issues.length}`);
 
   if (report.blocks.length > 0) {
     lines.push('');
+    lines.push(style.label('Details:'));
     for (const block of report.blocks) {
       const preview = block.content.slice(0, 60).replace(/\n/g, ' ');
       const ellipsis = block.content.length > 60 ? '…' : '';
@@ -38,7 +43,7 @@ export function renderText(report: AnalysisReport): string {
 
   if (report.issues.length > 0) {
     lines.push('');
-    lines.push('Warnings:');
+    lines.push(style.label('Warning details:'));
     for (const issue of report.issues) {
       const icon = SEVERITY_ICON[issue.severity] ?? '?';
       const loc = issue.blockId ? ` [${issue.blockId}]` : '';
@@ -48,6 +53,12 @@ export function renderText(report: AnalysisReport): string {
         lines.push(`    → ${issue.suggestion}`);
       }
     }
+  }
+
+  if (options.compactHint) {
+    lines.push('');
+    lines.push(style.label('Next step:'));
+    lines.push(`  Hint: ${options.compactHint}`);
   }
 
   lines.push('');

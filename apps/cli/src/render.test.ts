@@ -34,17 +34,17 @@ describe('renderText', () => {
 
   it('shows total token count', () => {
     const output = renderText(baseReport);
-    expect(output).toContain('10');
+    expect(output).toContain('Tokens : 10');
   });
 
   it('shows tokenizer metadata when present', () => {
     const output = renderText({ ...baseReport, tokenizer: { id: 'o200k_base' } });
-    expect(output).toContain('Tokenizer: o200k_base');
+    expect(output).toContain('Tokens : 10  (o200k_base)');
   });
 
   it('shows total block count', () => {
     const output = renderText(baseReport);
-    expect(output).toContain('2');
+    expect(output).toContain('Blocks : 2');
   });
 
   it('shows block type and id', () => {
@@ -72,9 +72,19 @@ describe('renderText', () => {
     expect(output).toContain('You are a helpful assistant');
   });
 
+  it('keeps summary ordering: tokens before blocks before details', () => {
+    const output = renderText(baseReport);
+    const tokensIdx = output.indexOf('Tokens :');
+    const blocksIdx = output.indexOf('Blocks :');
+    const detailsIdx = output.indexOf('Details:');
+    expect(tokensIdx).toBeGreaterThan(-1);
+    expect(blocksIdx).toBeGreaterThan(tokensIdx);
+    expect(detailsIdx).toBeGreaterThan(blocksIdx);
+  });
+
   it('omits warnings section when no issues', () => {
     const output = renderText(baseReport);
-    expect(output).not.toContain('Warnings');
+    expect(output).not.toContain('Warning details:');
   });
 
   it('shows warnings section when issues exist', () => {
@@ -90,7 +100,7 @@ describe('renderText', () => {
       ],
     };
     const output = renderText(reportWithIssue);
-    expect(output).toContain('Warnings');
+    expect(output).toContain('Warning details');
     expect(output).toContain('block-too-long');
     expect(output).toContain('Block is 600 tokens');
     expect(output).toContain('[block-1]');
@@ -113,6 +123,12 @@ describe('renderText', () => {
       issues: [{ ruleId: 'block-too-long', severity: 'warning', message: 'Block is long', suggestion: 'Trim it' }],
     };
     expect(renderText(reportWithSuggestion)).toContain('→ Trim it');
+  });
+
+  it('renders compact hint when provided', () => {
+    const output = renderText(baseReport, { compactHint: 'run `ctxc compact <input>`' });
+    expect(output).toContain('Next step:');
+    expect(output).toContain('ctxc compact');
   });
 
   it('omits suggestion line when suggestion absent', () => {

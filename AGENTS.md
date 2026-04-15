@@ -15,6 +15,9 @@ pnpm verify
 
 # CLI after build
 pnpm cc help
+pnpm cc compact --text "You are helpful. You are helpful."
+pnpm cc compact examples/basic-prompt.md
+pnpm cc compact examples --diff
 pnpm cc analyze examples/basic-prompt.md
 pnpm cc analyze examples
 pnpm cc analyze --text "Be concise. Be concise."
@@ -24,9 +27,6 @@ pnpm cc lint examples
 pnpm cc optimize examples/basic-prompt.md --dry-run
 pnpm cc optimize examples --dry-run
 pnpm cc optimize examples/basic-prompt.md --dry-run --diff
-pnpm cc compact examples/basic-prompt.md
-pnpm cc compact examples --diff
-pnpm cc compact --text "You are helpful. You are helpful."
 echo "You are helpful. You are helpful." | pnpm cc compact --stdin
 pnpm cc optimize examples/basic-prompt.md --dry-run --only remove-exact-duplicates
 pnpm cc optimize examples --dry-run --except truncate-tool-output

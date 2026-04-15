@@ -23,12 +23,13 @@ const baseResult: OptimizationResult = {
 };
 
 describe('renderOptimizeText', () => {
-  it('shows path, token counts, and change count', () => {
+  it('shows path, result line, token counts, and change count', () => {
     const out = renderOptimizeText(baseResult, { dryRun: true });
     expect(out).toContain('/tmp/prompt.md');
+    expect(out).toContain('Result:');
     expect(out).toContain('8');
     expect(out).toContain('4');
-    expect(out).toContain('Changes: 1 applied');
+    expect(out).toContain('Applied transforms:');
   });
 
   it('shows tokenizer metadata when present', () => {
@@ -55,7 +56,6 @@ describe('renderOptimizeText', () => {
     const out = renderOptimizeText(baseResult, { dryRun: true });
     expect(out).toContain('remove-exact-duplicates');
     expect(out).toContain('Exact duplicate of block-1');
-    expect(out).toContain('before:');
   });
 
   it('shows dry-run status when file was not written', () => {
@@ -116,7 +116,7 @@ describe('renderOptimizeText', () => {
       appliedChanges: [],
     };
     const out = renderOptimizeText(result, { dryRun: true });
-    expect(out).toContain('No deterministic compaction found');
+    expect(out).toContain('Result: no deterministic compaction found');
     expect(out).not.toContain('File not written');
   });
 
@@ -127,9 +127,25 @@ describe('renderOptimizeText', () => {
       showOptimizedContent: true,
     });
     expect(out).toContain('Compact: /tmp/prompt.md');
-    expect(out).toContain('Compacted text:');
+    expect(out).toContain('Result text:');
     expect(out).toContain('You are helpful.');
     expect(out).toContain('Preview only. File not written.');
+  });
+
+  it('keeps ordering: result before tokens before tokenizer before result text', () => {
+    const out = renderOptimizeText({ ...baseResult, tokenizer: { id: 'char' } }, {
+      command: 'compact',
+      dryRun: true,
+      showOptimizedContent: true,
+    });
+    const resultIdx = out.indexOf('Result:');
+    const tokensIdx = out.indexOf('Tokens :');
+    const tokenizerIdx = out.indexOf('Tokenizer:');
+    const textIdx = out.indexOf('Result text:');
+    expect(resultIdx).toBeGreaterThan(-1);
+    expect(tokensIdx).toBeGreaterThan(resultIdx);
+    expect(tokenizerIdx).toBeGreaterThan(tokensIdx);
+    expect(textIdx).toBeGreaterThan(tokenizerIdx);
   });
 });
 
