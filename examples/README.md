@@ -51,6 +51,17 @@ echo "Be concise. Be concise." | pnpm cc optimize --stdin --dry-run
 
 `--text` and `--stdin` are single-input modes; directory mode uses a positional path.
 
+Filter which files are processed in directory mode:
+
+```bash
+pnpm cc analyze examples --include "*.md"
+pnpm cc lint examples --exclude protected-prompt.md
+pnpm cc optimize examples --dry-run --include "basic-prompt.md"
+pnpm cc optimize examples --dry-run --exclude "protected-prompt.md"
+```
+
+`--include` and `--exclude` accept comma-separated patterns. `--exclude` wins when both match the same file.
+
 Use protected markers when specific markdown/text ranges must stay unchanged:
 
 ```bash

@@ -25,6 +25,7 @@ import {
 } from './batch.js';
 import { isFileLikeInput, isPathInput, resolveCliInput } from './input.js';
 import { parseOptimizeControls } from './optimize-controls.js';
+import { parseDirectoryFilters } from './directory-filters.js';
 
 const [, , command = 'help', ...args] = process.argv;
 
@@ -50,6 +51,8 @@ Options:
   --diff       Show compact before/after snippets (optimize only)
   --only       Run only the listed optimize transform IDs (comma-separated)
   --except     Run all default optimize transforms except the listed IDs
+  --include    Include only files matching patterns (comma-separated, directory mode only)
+  --exclude    Exclude files matching patterns (comma-separated, directory mode only)
 
 Version: 0.1.0
 `);
@@ -59,10 +62,15 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
   try {
     const parsed = parseArgs(argv);
     const jsonFlag = parsed.flags.has('json');
+    const filters = parseDirectoryFilters(parsed);
     const input = await resolveCliInput(parsed, {
       command: 'analyze',
       usage: usageFor('analyze'),
     });
+
+    if ((parsed.options.has('include') || parsed.options.has('exclude')) && input.kind !== 'directory') {
+      throw new Error('--include and --exclude require directory input');
+    }
 
     const config = await loadConfig({
       configPath: parsed.options.get('config'),
@@ -70,7 +78,7 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
     if (input.kind === 'directory') {
-      const result = await analyzeDirectory(input.path, config);
+      const result = await analyzeDirectory(input.path, config, { filters });
       console.log(jsonFlag ? renderAnalyzeDirectoryJson(result) : renderAnalyzeDirectoryText(result));
       return;
     }
@@ -87,10 +95,15 @@ async function cmdLint(argv: string[]): Promise<void> {
   try {
     const parsed = parseArgs(argv);
     const jsonFlag = parsed.flags.has('json');
+    const filters = parseDirectoryFilters(parsed);
     const input = await resolveCliInput(parsed, {
       command: 'lint',
       usage: usageFor('lint'),
     });
+
+    if ((parsed.options.has('include') || parsed.options.has('exclude')) && input.kind !== 'directory') {
+      throw new Error('--include and --exclude require directory input');
+    }
 
     const config = await loadConfig({
       configPath: parsed.options.get('config'),
@@ -98,7 +111,7 @@ async function cmdLint(argv: string[]): Promise<void> {
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
     if (input.kind === 'directory') {
-      const result = await lintDirectory(input.path, config);
+      const result = await lintDirectory(input.path, config, { filters });
       console.log(jsonFlag ? renderLintDirectoryJson(result) : renderLintDirectoryText(result));
       return;
     }
@@ -121,6 +134,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
     const write = parsed.flags.has('write');
     const shouldWrite = write && !dryRun;
     const controls = parseOptimizeControls(parsed, KNOWN_TRANSFORM_IDS);
+    const filters = parseDirectoryFilters(parsed);
     const input = await resolveCliInput(parsed, {
       command: 'optimize',
       usage: usageFor('optimize'),
@@ -130,13 +144,17 @@ async function cmdOptimize(argv: string[]): Promise<void> {
       throw new Error('--write requires path input');
     }
 
+    if ((parsed.options.has('include') || parsed.options.has('exclude')) && input.kind !== 'directory') {
+      throw new Error('--include and --exclude require directory input');
+    }
+
     const config = await loadConfig({
       configPath: parsed.options.get('config'),
       knownRuleIds: KNOWN_RULE_IDS,
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
     if (input.kind === 'directory') {
-      const result = await optimizeDirectory(input.path, config, { write: shouldWrite, controls });
+      const result = await optimizeDirectory(input.path, config, { write: shouldWrite, controls, filters });
       console.log(
         jsonFlag
           ? renderOptimizeDirectoryJson(result)
@@ -223,7 +241,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
 
     const key = arg.slice(2);
-    if (key === 'config' || key === 'text' || key === 'only' || key === 'except') {
+    if (key === 'config' || key === 'text' || key === 'only' || key === 'except' || key === 'include' || key === 'exclude') {
       const value = argv[i + 1];
       if (value === undefined || value.startsWith('--')) {
         throw new Error(`missing value for --${key}`);
@@ -240,7 +258,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function usageFor(command: 'analyze' | 'lint' | 'optimize'): string {
-  const base = `context-compiler ${command} <file-or-directory> [--text <text>] [--stdin] [--json] [--config <path>]`;
+  const base = `context-compiler ${command} <file-or-directory> [--text <text>] [--stdin] [--json] [--config <path>] [--include <patterns>] [--exclude <patterns>]`;
   if (command !== 'optimize') return base;
   return `${base} [--dry-run] [--write] [--diff] [--only <ids>] [--except <ids>]`;
 }

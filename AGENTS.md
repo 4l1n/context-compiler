@@ -27,6 +27,10 @@ pnpm cc optimize examples/basic-prompt.md --dry-run --diff
 pnpm cc optimize examples/basic-prompt.md --dry-run --only remove-exact-duplicates
 pnpm cc optimize examples --dry-run --except truncate-tool-output
 pnpm cc analyze examples/protected-prompt.md
+pnpm cc analyze examples --include "*.md"
+pnpm cc lint examples --exclude protected-prompt.md
+pnpm cc optimize examples --dry-run --include "basic-prompt.md"
+pnpm cc optimize examples --dry-run --exclude "protected-prompt.md"
 
 # Single package
 pnpm --filter @context-compiler/core build

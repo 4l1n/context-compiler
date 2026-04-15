@@ -152,6 +152,25 @@ Directory inputs are recursive and support `.md`, `.txt`, and `.json` files. Com
 
 Directory output includes per-file results plus an aggregate summary. `optimize` never writes directory changes unless `--write` is passed.
 
+### Directory Filters
+
+Use `--include` and `--exclude` to control which files are processed. Both flags accept comma-separated patterns and apply to directory mode only.
+
+```bash
+pnpm cc analyze examples --include "*.md"
+pnpm cc lint examples --exclude drafts
+pnpm cc optimize examples --dry-run --include "prompts/**" --exclude "drafts,generated"
+```
+
+**Pattern semantics:**
+
+- No wildcards: segment-prefix match. `examples` matches `examples/foo.md` and `examples/sub/bar.txt`.
+- `*` matches any characters within a single path segment (no `/`). `*.md` matches `foo.md` but not `examples/foo.md`.
+- `**` matches any characters including path separators. `**/*.md` matches `.md` files at any depth including the root.
+- Patterns match against the normalized relative path from the input directory (using `/` separators).
+- `--exclude` wins: a file that matches both include and exclude is excluded.
+- Fails clearly if filtering leaves zero supported files.
+
 ## Protected Blocks
 
 Markdown and text inputs can mark content that optimize must preserve exactly:

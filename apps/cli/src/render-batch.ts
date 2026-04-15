@@ -1,6 +1,7 @@
 import type { OptimizationChange } from '@context-compiler/core';
 import type {
   AnalyzeDirectoryResult,
+  DirectoryFilters,
   LintDirectoryResult,
   OptimizeDirectoryResult,
 } from './batch.js';
@@ -12,6 +13,8 @@ export function renderAnalyzeDirectoryText(result: AnalyzeDirectoryResult): stri
   const lines: string[] = [];
   lines.push(`\nAnalysis: ${result.path}`);
   lines.push(HR);
+  const filterLine = formatActiveFilters(result.filters);
+  if (filterLine) lines.push(filterLine);
   lines.push('Files:');
 
   for (const report of result.files) {
@@ -38,6 +41,8 @@ export function renderLintDirectoryText(result: LintDirectoryResult): string {
   const lines: string[] = [];
   lines.push(`\nLint: ${result.path}`);
   lines.push(HR);
+  const filterLine = formatActiveFilters(result.filters);
+  if (filterLine) lines.push(filterLine);
   lines.push('Files:');
 
   for (const file of result.files) {
@@ -75,6 +80,8 @@ export function renderOptimizeDirectoryText(
   const lines: string[] = [];
   lines.push(`\nOptimize: ${result.path}`);
   lines.push(HR);
+  const filterLine = formatActiveFilters(result.filters);
+  if (filterLine) lines.push(filterLine);
   const transformSelectionLine = formatTransformSelection(result.transformSelection);
   if (transformSelectionLine) {
     lines.push(transformSelectionLine);
@@ -139,4 +146,18 @@ function preview(text: string, maxLen = 72): string {
 function formatSavings(value: number): string {
   if (value === 0) return '0';
   return value > 0 ? `-${value}` : `+${Math.abs(value)}`;
+}
+
+/**
+ * Returns a one-line filter summary or empty string if no filters are active.
+ * Format: "Filters: include [a, b] exclude [c]"
+ * Omits the include/exclude part when the corresponding list is empty.
+ */
+function formatActiveFilters(filters: DirectoryFilters | undefined): string {
+  if (!filters) return '';
+  const parts: string[] = [];
+  if (filters.include.length > 0) parts.push(`include [${filters.include.join(', ')}]`);
+  if (filters.exclude.length > 0) parts.push(`exclude [${filters.exclude.join(', ')}]`);
+  if (parts.length === 0) return '';
+  return `Filters: ${parts.join(' ')}`;
 }

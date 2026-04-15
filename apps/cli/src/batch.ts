@@ -13,6 +13,10 @@ import { createTokenizer } from '@context-compiler/tokenizers';
 import type { ContextCompilerConfig } from '@context-compiler/config';
 import { discoverSupportedFiles } from './discovery.js';
 import type { OptimizeControls } from './optimize-controls.js';
+import { filterFiles, hasActiveFilters } from './directory-filters.js';
+import type { DirectoryFilters } from './directory-filters.js';
+
+export type { DirectoryFilters };
 
 export type AnalyzeDirectorySummary = {
   filesProcessed: number;
@@ -24,6 +28,7 @@ export type AnalyzeDirectorySummary = {
 export type AnalyzeDirectoryResult = {
   path: string;
   kind: 'directory';
+  filters?: DirectoryFilters;
   files: AnalysisReport[];
   summary: AnalyzeDirectorySummary;
 };
@@ -49,6 +54,7 @@ export type LintDirectorySummary = {
 export type LintDirectoryResult = {
   path: string;
   kind: 'directory';
+  filters?: DirectoryFilters;
   files: LintDirectoryFileResult[];
   summary: LintDirectorySummary;
 };
@@ -66,6 +72,7 @@ export type OptimizeDirectorySummary = {
 export type OptimizeDirectoryResult = {
   path: string;
   kind: 'directory';
+  filters?: DirectoryFilters;
   transformSelection?: OptimizeTransformSelection;
   files: OptimizationResult[];
   summary: OptimizeDirectorySummary;
@@ -92,8 +99,13 @@ export async function analyzeFilePath(filePath: string, config: ContextCompilerC
 export async function analyzeDirectory(
   directoryPath: string,
   config: ContextCompilerConfig,
+  options: { filters?: DirectoryFilters } = {},
 ): Promise<AnalyzeDirectoryResult> {
-  const filePaths = await discoverSupportedFiles(directoryPath);
+  const discovered = await discoverSupportedFiles(directoryPath);
+  const filters = options.filters ?? { include: [], exclude: [] };
+  const filePaths = hasActiveFilters(filters)
+    ? filterFiles(discovered, directoryPath, filters)
+    : discovered;
   const files: AnalysisReport[] = [];
 
   for (const filePath of filePaths) {
@@ -103,6 +115,7 @@ export async function analyzeDirectory(
   return {
     path: directoryPath,
     kind: 'directory',
+    ...(hasActiveFilters(filters) ? { filters } : {}),
     files,
     summary: {
       filesProcessed: files.length,
@@ -133,8 +146,13 @@ export function lintReport(report: AnalysisReport, config: ContextCompilerConfig
 export async function lintDirectory(
   directoryPath: string,
   config: ContextCompilerConfig,
+  options: { filters?: DirectoryFilters } = {},
 ): Promise<LintDirectoryResult> {
-  const filePaths = await discoverSupportedFiles(directoryPath);
+  const discovered = await discoverSupportedFiles(directoryPath);
+  const filters = options.filters ?? { include: [], exclude: [] };
+  const filePaths = hasActiveFilters(filters)
+    ? filterFiles(discovered, directoryPath, filters)
+    : discovered;
   const files: LintDirectoryFileResult[] = [];
 
   for (const filePath of filePaths) {
@@ -155,6 +173,7 @@ export async function lintDirectory(
   return {
     path: directoryPath,
     kind: 'directory',
+    ...(hasActiveFilters(filters) ? { filters } : {}),
     files,
     summary: {
       filesProcessed: files.length,
@@ -193,9 +212,13 @@ export async function optimizeFilePath(
 export async function optimizeDirectory(
   directoryPath: string,
   config: ContextCompilerConfig,
-  options: { write?: boolean; controls?: OptimizeControls } = {},
+  options: { write?: boolean; controls?: OptimizeControls; filters?: DirectoryFilters } = {},
 ): Promise<OptimizeDirectoryResult> {
-  const filePaths = await discoverSupportedFiles(directoryPath);
+  const discovered = await discoverSupportedFiles(directoryPath);
+  const filters = options.filters ?? { include: [], exclude: [] };
+  const filePaths = hasActiveFilters(filters)
+    ? filterFiles(discovered, directoryPath, filters)
+    : discovered;
   const files: OptimizationResult[] = [];
   const controls = options.controls ?? { mode: 'default' };
 
@@ -219,6 +242,7 @@ export async function optimizeDirectory(
   return {
     path: directoryPath,
     kind: 'directory',
+    ...(hasActiveFilters(filters) ? { filters } : {}),
     transformSelection: files[0]?.transformSelection,
     files,
     summary: {

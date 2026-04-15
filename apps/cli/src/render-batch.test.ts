@@ -103,6 +103,77 @@ describe('directory batch renderers', () => {
     expect(text).not.toContain('/tmp/prompts/b.md');
   });
 
+  it('renders filter line in analyze text when include is active', () => {
+    const result: AnalyzeDirectoryResult = {
+      path: '/tmp/prompts',
+      kind: 'directory',
+      filters: { include: ['prompts/**'], exclude: [] },
+      files: [reportA],
+      summary: { filesProcessed: 1, totalBlocks: 2, totalTokens: 10, warningCount: 0 },
+    };
+    const text = renderAnalyzeDirectoryText(result);
+    expect(text).toContain('Filters: include [prompts/**]');
+    expect(text.match(/Filters:/g) ?? []).toHaveLength(1);
+  });
+
+  it('renders filter line in lint text when exclude is active', () => {
+    const lintResult: LintResult = { rulesRun: [], issues: [] };
+    const result: LintDirectoryResult = {
+      path: '/tmp/prompts',
+      kind: 'directory',
+      filters: { include: [], exclude: ['drafts'] },
+      files: [{ path: reportA.path, report: reportA, result: lintResult }],
+      summary: { filesProcessed: 1, totalIssues: 0, issuesBySeverity: { error: 0, warning: 0, info: 0 } },
+    };
+    const text = renderLintDirectoryText(result);
+    expect(text).toContain('Filters: exclude [drafts]');
+    expect(text.match(/Filters:/g) ?? []).toHaveLength(1);
+  });
+
+  it('renders filter line in optimize text with include and exclude', () => {
+    const result = {
+      ...optimizeDirectoryResult(),
+      filters: { include: ['prompts/**'], exclude: ['drafts'] },
+    };
+    const text = renderOptimizeDirectoryText(result);
+    expect(text).toContain('Filters: include [prompts/**] exclude [drafts]');
+    expect(text.match(/Filters:/g) ?? []).toHaveLength(1);
+  });
+
+  it('does not render filter line when no filters active', () => {
+    const result: AnalyzeDirectoryResult = {
+      path: '/tmp/prompts',
+      kind: 'directory',
+      files: [reportA],
+      summary: { filesProcessed: 1, totalBlocks: 2, totalTokens: 10, warningCount: 0 },
+    };
+    const text = renderAnalyzeDirectoryText(result);
+    expect(text).not.toContain('Filters:');
+  });
+
+  it('includes filters field in analyze JSON when active', () => {
+    const result: AnalyzeDirectoryResult = {
+      path: '/tmp/prompts',
+      kind: 'directory',
+      filters: { include: ['*.md'], exclude: [] },
+      files: [reportA],
+      summary: { filesProcessed: 1, totalBlocks: 2, totalTokens: 10, warningCount: 0 },
+    };
+    const parsed = JSON.parse(renderAnalyzeDirectoryJson(result)) as AnalyzeDirectoryResult;
+    expect(parsed.filters).toEqual({ include: ['*.md'], exclude: [] });
+  });
+
+  it('omits filters key from analyze JSON when no filters active', () => {
+    const result: AnalyzeDirectoryResult = {
+      path: '/tmp/prompts',
+      kind: 'directory',
+      files: [reportA],
+      summary: { filesProcessed: 1, totalBlocks: 2, totalTokens: 10, warningCount: 0 },
+    };
+    const parsed = JSON.parse(renderAnalyzeDirectoryJson(result)) as Record<string, unknown>;
+    expect('filters' in parsed).toBe(false);
+  });
+
   it('renders optimize directory JSON', () => {
     const parsed = JSON.parse(
       renderOptimizeDirectoryJson({
