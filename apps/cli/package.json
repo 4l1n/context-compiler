@@ -2,11 +2,29 @@
   "name": "@context-compiler/cli",
   "version": "0.1.0",
   "description": "Analyze, lint, and deterministically optimize LLM prompt/context files",
-  "keywords": ["llm", "prompt", "context", "cli", "tokenizer", "lint"],
-  "private": true,
+  "keywords": [
+    "llm",
+    "prompt",
+    "context",
+    "cli",
+    "tokenizer",
+    "lint"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/4l1n/context-compiler.git"
+  },
+  "bugs": {
+    "url": "https://github.com/4l1n/context-compiler/issues"
+  },
   "type": "module",
-  "engines": { "node": ">=18" },
-  "files": ["dist"],
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
   "bin": {
     "ctxc": "./dist/ctxc.js",
     "context-compiler": "./dist/ctxc.js"
