@@ -44,6 +44,9 @@ pnpm --filter @context-compiler/rules test
 
 # Single test file
 cd packages/core && pnpm exec vitest run src/parser.test.ts
+
+# Integration tests (require pnpm build first — they execute the compiled binary)
+cd apps/cli && pnpm exec vitest run src/cli.integration.test.ts
 ```
 
 ## Architecture Rules
