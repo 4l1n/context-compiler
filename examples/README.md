@@ -11,6 +11,15 @@ pnpm cc optimize examples/basic-prompt.md --dry-run
 pnpm cc optimize examples/basic-prompt.md --dry-run --diff
 ```
 
+Run the same commands across the example directory:
+
+```bash
+pnpm cc analyze examples
+pnpm cc lint examples
+pnpm cc optimize examples --dry-run
+pnpm cc optimize examples --dry-run --diff
+```
+
 Use the example config explicitly:
 
 ```bash
@@ -32,6 +41,8 @@ echo "Be concise. Be concise." | pnpm cc analyze --stdin
 echo "Be concise. Be concise." | pnpm cc lint --stdin
 echo "Be concise. Be concise." | pnpm cc optimize --stdin --dry-run
 ```
+
+`--text` and `--stdin` are single-input modes; directory mode uses a positional path.
 
 Use protected markers when specific markdown/text ranges must stay unchanged:
 

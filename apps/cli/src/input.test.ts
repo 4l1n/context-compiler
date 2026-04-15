@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -23,17 +23,32 @@ const baseOptions = {
 };
 
 describe('resolveCliInput', () => {
-  it('loads path input', async () => {
+  it('loads file path input', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'context-compiler-input-'));
     const path = join(cwd, 'prompt.md');
     try {
       await writeFile(path, '# System\nBe concise.', 'utf8');
       const input = await resolveCliInput(parsed({ positionals: [path] }), baseOptions);
       expect(input).toEqual({
-        kind: 'path',
+        kind: 'file',
         path,
         content: '# System\nBe concise.',
         ext: '.md',
+      });
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('resolves directory path input', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'context-compiler-input-'));
+    const path = join(cwd, 'prompts');
+    try {
+      await mkdir(path);
+      const input = await resolveCliInput(parsed({ positionals: [path] }), baseOptions);
+      expect(input).toEqual({
+        kind: 'directory',
+        path,
       });
     } finally {
       await rm(cwd, { recursive: true, force: true });

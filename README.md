@@ -46,15 +46,15 @@ pnpm cc optimize examples/basic-prompt.md --write
 ## Commands
 
 ```bash
-pnpm cc analyze <file> [--json] [--config <path>]
+pnpm cc analyze <file-or-directory> [--json] [--config <path>]
 pnpm cc analyze --text "<raw content>" [--json] [--config <path>]
 pnpm cc analyze --stdin [--json] [--config <path>]
 
-pnpm cc lint <file> [--json] [--config <path>]
+pnpm cc lint <file-or-directory> [--json] [--config <path>]
 pnpm cc lint --text "<raw content>" [--json] [--config <path>]
 pnpm cc lint --stdin [--json] [--config <path>]
 
-pnpm cc optimize <file> [--dry-run] [--write] [--diff] [--json] [--config <path>]
+pnpm cc optimize <file-or-directory> [--dry-run] [--write] [--diff] [--json] [--config <path>]
 pnpm cc optimize --text "<raw content>" [--dry-run] [--diff] [--json] [--config <path>]
 pnpm cc optimize --stdin [--dry-run] [--diff] [--json] [--config <path>]
 ```
@@ -66,8 +66,8 @@ pnpm cli analyze examples/basic-prompt.md
 node apps/cli/dist/index.js analyze examples/basic-prompt.md
 ```
 
-Input modes are explicit. A positional argument is always treated as a file path.
-Raw text must use `--text`, and piped input must use `--stdin`.
+Input modes are explicit. A positional argument is always treated as a file or directory path.
+Raw text must use `--text`, and piped input must use `--stdin`. `--text` and `--stdin` are always single-input modes.
 
 ## Analyze
 
@@ -75,6 +75,7 @@ Raw text must use `--text`, and piped input must use `--stdin`.
 
 ```bash
 pnpm cc analyze examples/basic-prompt.md
+pnpm cc analyze examples
 pnpm cc analyze --text "Be concise. Be concise."
 echo "Be concise. Be concise." | pnpm cc analyze --stdin
 pnpm cc analyze examples/basic-prompt.md --json
@@ -93,6 +94,7 @@ Current rules:
 
 ```bash
 pnpm cc lint examples/basic-prompt.md
+pnpm cc lint examples
 pnpm cc lint --text "Be concise. Be concise."
 echo "Be concise. Be concise." | pnpm cc lint --stdin
 pnpm cc lint examples/basic-prompt.md --json
@@ -113,7 +115,9 @@ Preview changes:
 
 ```bash
 pnpm cc optimize examples/basic-prompt.md --dry-run
+pnpm cc optimize examples --dry-run
 pnpm cc optimize examples/basic-prompt.md --dry-run --diff
+pnpm cc optimize examples --dry-run --diff
 pnpm cc optimize --text "Be concise. Be concise." --dry-run
 echo "Be concise. Be concise." | pnpm cc optimize --stdin --dry-run
 ```
@@ -122,6 +126,7 @@ Write changes:
 
 ```bash
 pnpm cc optimize examples/basic-prompt.md --write
+pnpm cc optimize examples --write
 ```
 
 Machine-readable output:
@@ -131,6 +136,12 @@ pnpm cc optimize examples/basic-prompt.md --dry-run --json
 ```
 
 `--diff` adds compact before/after snippets for each applied change. `--json` takes precedence when both flags are provided.
+
+## Directory Mode
+
+Directory inputs are recursive and support `.md`, `.txt`, and `.json` files. Common non-source directories are skipped: `.git`, `node_modules`, `dist`, `build`, and `.turbo`.
+
+Directory output includes per-file results plus an aggregate summary. `optimize` never writes directory changes unless `--write` is passed.
 
 ## Protected Blocks
 

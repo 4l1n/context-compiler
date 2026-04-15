@@ -2,18 +2,28 @@
 
 import { writeFile } from 'node:fs/promises';
 import { loadConfig } from '@context-compiler/config';
-import {
-  buildReport,
-  runOptimize,
-  buildTransforms,
-  KNOWN_TRANSFORM_IDS,
-} from '@context-compiler/core';
-import { runLint, buildRules, KNOWN_RULE_IDS } from '@context-compiler/rules';
-import { createTokenizer } from '@context-compiler/tokenizers';
+import { KNOWN_TRANSFORM_IDS } from '@context-compiler/core';
+import { KNOWN_RULE_IDS } from '@context-compiler/rules';
 import { renderText, renderJson } from './render.js';
 import { renderLintText, renderLintJson } from './render-lint.js';
 import { renderOptimizeText, renderOptimizeJson } from './render-optimize.js';
-import { isPathInput, resolveCliInput } from './input.js';
+import {
+  renderAnalyzeDirectoryJson,
+  renderAnalyzeDirectoryText,
+  renderLintDirectoryJson,
+  renderLintDirectoryText,
+  renderOptimizeDirectoryJson,
+  renderOptimizeDirectoryText,
+} from './render-batch.js';
+import {
+  analyzeDirectory,
+  analyzeInput,
+  lintDirectory,
+  lintReport,
+  optimizeDirectory,
+  optimizeInput,
+} from './batch.js';
+import { isFileLikeInput, isPathInput, resolveCliInput } from './input.js';
 
 const [, , command = 'help', ...args] = process.argv;
 
@@ -32,8 +42,8 @@ Commands:
 Options:
   --json       Output as JSON
   --config     Path to config JSON file
-  --text       Use raw text input instead of a file path
-  --stdin      Read input from stdin instead of a file path
+  --text       Use raw text input instead of a file or directory path
+  --stdin      Read input from stdin instead of a file or directory path
   --dry-run    Show what would change without writing (optimize only)
   --write      Write optimized content back to the file (optimize only)
   --diff       Show compact before/after snippets (optimize only)
@@ -56,11 +66,13 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
       knownRuleIds: KNOWN_RULE_IDS,
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
-    const tokenizer = createTokenizer(config.tokenizer);
-    const report = buildReport(input.path, input.content, input.ext, tokenizer.tokenizer, {
-      tokenizer: { id: tokenizer.id },
-      warningThresholds: config.lint.warnings,
-    });
+    if (input.kind === 'directory') {
+      const result = await analyzeDirectory(input.path, config);
+      console.log(jsonFlag ? renderAnalyzeDirectoryJson(result) : renderAnalyzeDirectoryText(result));
+      return;
+    }
+
+    const report = analyzeInput(input, config);
     console.log(jsonFlag ? renderJson(report) : renderText(report));
   } catch (err) {
     console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
@@ -82,24 +94,14 @@ async function cmdLint(argv: string[]): Promise<void> {
       knownRuleIds: KNOWN_RULE_IDS,
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
-    const tokenizer = createTokenizer(config.tokenizer);
-    const report = buildReport(input.path, input.content, input.ext, tokenizer.tokenizer, {
-      tokenizer: { id: tokenizer.id },
-      warningThresholds: config.lint.warnings,
-    });
-    const rules = buildRules({
-      enabledRuleIds: config.lint.rules.enabled,
-      disabledRuleIds: config.lint.rules.disabled,
-      thresholds: {
-        noisyToolOutputTokens: config.lint.thresholds.noisyToolOutputTokens,
-        oversizedExampleRatio: config.lint.thresholds.oversizedExampleRatio,
-      },
-    });
-    const lintResult = runLint(rules, {
-      path: report.path,
-      blocks: report.blocks,
-      totalTokens: report.totalTokens,
-    });
+    if (input.kind === 'directory') {
+      const result = await lintDirectory(input.path, config);
+      console.log(jsonFlag ? renderLintDirectoryJson(result) : renderLintDirectoryText(result));
+      return;
+    }
+
+    const report = analyzeInput(input, config);
+    const lintResult = lintReport(report, config);
     console.log(jsonFlag ? renderLintJson(report, lintResult) : renderLintText(report, lintResult));
   } catch (err) {
     console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
@@ -129,20 +131,21 @@ async function cmdOptimize(argv: string[]): Promise<void> {
       knownRuleIds: KNOWN_RULE_IDS,
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
-    const tokenizer = createTokenizer(config.tokenizer);
-    const report = buildReport(input.path, input.content, input.ext, tokenizer.tokenizer, {
-      tokenizer: { id: tokenizer.id },
-      warningThresholds: config.lint.warnings,
-    });
-    const transforms = buildTransforms({
-      enabledTransformIds: config.optimize.transforms.enabled,
-      disabledTransformIds: config.optimize.transforms.disabled,
-      thresholds: {
-        truncateToolOutputTokens: config.optimize.thresholds.truncateToolOutputTokens,
-        trimOversizedExamplesPercent: config.optimize.thresholds.trimOversizedExamplesPercent,
-      },
-    });
-    const result = runOptimize(input.path, input.content, report, transforms, tokenizer.tokenizer);
+    if (input.kind === 'directory') {
+      const result = await optimizeDirectory(input.path, config, { write: shouldWrite });
+      console.log(
+        jsonFlag
+          ? renderOptimizeDirectoryJson(result)
+          : renderOptimizeDirectoryText(result, { write: shouldWrite, diff }),
+      );
+      return;
+    }
+
+    if (!isFileLikeInput(input)) {
+      throw new Error('optimize requires file, --text, or --stdin input');
+    }
+
+    const result = optimizeInput(input, config);
     const wroteFile = shouldWrite && result.appliedChanges.length > 0;
 
     if (wroteFile) {
@@ -233,7 +236,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function usageFor(command: 'analyze' | 'lint' | 'optimize'): string {
-  const base = `context-compiler ${command} <file> [--text <text>] [--stdin] [--json] [--config <path>]`;
+  const base = `context-compiler ${command} <file-or-directory> [--text <text>] [--stdin] [--json] [--config <path>]`;
   if (command !== 'optimize') return base;
   return `${base} [--dry-run] [--write] [--diff]`;
 }

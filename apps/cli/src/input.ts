@@ -1,3 +1,4 @@
+import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { loadFile } from '@context-compiler/core';
 
@@ -7,14 +8,35 @@ export type ParsedArgsLike = {
   positionals: string[];
 };
 
-export type CliInputKind = 'path' | 'text' | 'stdin';
+export type CliInputKind = 'file' | 'directory' | 'text' | 'stdin';
 
-export type CliInput = {
-  kind: CliInputKind;
+export type FileCliInput = {
+  kind: 'file';
   path: string;
   content: string;
   ext: string;
 };
+
+export type DirectoryCliInput = {
+  kind: 'directory';
+  path: string;
+};
+
+export type TextCliInput = {
+  kind: 'text';
+  path: string;
+  content: string;
+  ext: string;
+};
+
+export type StdinCliInput = {
+  kind: 'stdin';
+  path: string;
+  content: string;
+  ext: string;
+};
+
+export type CliInput = FileCliInput | DirectoryCliInput | TextCliInput | StdinCliInput;
 
 export type ResolveInputOptions = {
   command: string;
@@ -63,9 +85,17 @@ export async function resolveCliInput(
   }
 
   const path = parsed.positionals[0];
+  const pathStat = await stat(path);
+  if (pathStat.isDirectory()) {
+    return {
+      kind: 'directory',
+      path,
+    };
+  }
+
   const content = await loadFile(path);
   return {
-    kind: 'path',
+    kind: 'file',
     path,
     content,
     ext: extname(path).toLowerCase(),
@@ -73,7 +103,11 @@ export async function resolveCliInput(
 }
 
 export function isPathInput(input: CliInput): boolean {
-  return input.kind === 'path';
+  return input.kind === 'file' || input.kind === 'directory';
+}
+
+export function isFileLikeInput(input: CliInput): input is FileCliInput | TextCliInput | StdinCliInput {
+  return input.kind === 'file' || input.kind === 'text' || input.kind === 'stdin';
 }
 
 function readProcessStdin(): Promise<string> {

@@ -1,0 +1,247 @@
+import { writeFile } from 'node:fs/promises';
+import { extname } from 'node:path';
+import { loadFile, buildReport, runOptimize, buildTransforms } from '@context-compiler/core';
+import type { AnalysisIssue, AnalysisReport, OptimizationResult } from '@context-compiler/core';
+import { buildRules, runLint } from '@context-compiler/rules';
+import type { LintResult } from '@context-compiler/rules';
+import { createTokenizer } from '@context-compiler/tokenizers';
+import type { ContextCompilerConfig } from '@context-compiler/config';
+import { discoverSupportedFiles } from './discovery.js';
+
+export type AnalyzeDirectorySummary = {
+  filesProcessed: number;
+  totalBlocks: number;
+  totalTokens: number;
+  warningCount: number;
+};
+
+export type AnalyzeDirectoryResult = {
+  path: string;
+  kind: 'directory';
+  files: AnalysisReport[];
+  summary: AnalyzeDirectorySummary;
+};
+
+export type LintDirectoryFileResult = {
+  path: string;
+  report: AnalysisReport;
+  result: LintResult;
+};
+
+export type IssueSeverityCounts = {
+  error: number;
+  warning: number;
+  info: number;
+};
+
+export type LintDirectorySummary = {
+  filesProcessed: number;
+  totalIssues: number;
+  issuesBySeverity: IssueSeverityCounts;
+};
+
+export type LintDirectoryResult = {
+  path: string;
+  kind: 'directory';
+  files: LintDirectoryFileResult[];
+  summary: LintDirectorySummary;
+};
+
+export type OptimizeDirectorySummary = {
+  filesProcessed: number;
+  filesChanged: number;
+  filesWritten: number;
+  totalOriginalTokens: number;
+  totalOptimizedTokens: number;
+  totalSavings: number;
+  totalChangesApplied: number;
+};
+
+export type OptimizeDirectoryResult = {
+  path: string;
+  kind: 'directory';
+  files: OptimizationResult[];
+  summary: OptimizeDirectorySummary;
+};
+
+export type LoadedFileInput = {
+  path: string;
+  content: string;
+  ext: string;
+};
+
+export function analyzeInput(input: LoadedFileInput, config: ContextCompilerConfig): AnalysisReport {
+  const tokenizer = createTokenizer(config.tokenizer);
+  return buildReport(input.path, input.content, input.ext, tokenizer.tokenizer, {
+    tokenizer: { id: tokenizer.id },
+    warningThresholds: config.lint.warnings,
+  });
+}
+
+export async function analyzeFilePath(filePath: string, config: ContextCompilerConfig): Promise<AnalysisReport> {
+  return analyzeInput(await loadFileInput(filePath), config);
+}
+
+export async function analyzeDirectory(
+  directoryPath: string,
+  config: ContextCompilerConfig,
+): Promise<AnalyzeDirectoryResult> {
+  const filePaths = await discoverSupportedFiles(directoryPath);
+  const files: AnalysisReport[] = [];
+
+  for (const filePath of filePaths) {
+    files.push(await runForFile(filePath, 'analyze', () => analyzeFilePath(filePath, config)));
+  }
+
+  return {
+    path: directoryPath,
+    kind: 'directory',
+    files,
+    summary: {
+      filesProcessed: files.length,
+      totalBlocks: files.reduce((sum, report) => sum + report.totalBlocks, 0),
+      totalTokens: files.reduce((sum, report) => sum + report.totalTokens, 0),
+      warningCount: files.reduce((sum, report) => sum + report.issues.length, 0),
+    },
+  };
+}
+
+export function lintReport(report: AnalysisReport, config: ContextCompilerConfig): LintResult {
+  const rules = buildRules({
+    enabledRuleIds: config.lint.rules.enabled,
+    disabledRuleIds: config.lint.rules.disabled,
+    thresholds: {
+      noisyToolOutputTokens: config.lint.thresholds.noisyToolOutputTokens,
+      oversizedExampleRatio: config.lint.thresholds.oversizedExampleRatio,
+    },
+  });
+
+  return runLint(rules, {
+    path: report.path,
+    blocks: report.blocks,
+    totalTokens: report.totalTokens,
+  });
+}
+
+export async function lintDirectory(
+  directoryPath: string,
+  config: ContextCompilerConfig,
+): Promise<LintDirectoryResult> {
+  const filePaths = await discoverSupportedFiles(directoryPath);
+  const files: LintDirectoryFileResult[] = [];
+
+  for (const filePath of filePaths) {
+    files.push(
+      await runForFile(filePath, 'lint', async () => {
+        const report = await analyzeFilePath(filePath, config);
+        return {
+          path: filePath,
+          report,
+          result: lintReport(report, config),
+        };
+      }),
+    );
+  }
+
+  const allIssues = files.flatMap(file => [...file.report.issues, ...file.result.issues]);
+
+  return {
+    path: directoryPath,
+    kind: 'directory',
+    files,
+    summary: {
+      filesProcessed: files.length,
+      totalIssues: allIssues.length,
+      issuesBySeverity: countIssuesBySeverity(allIssues),
+    },
+  };
+}
+
+export function optimizeInput(input: LoadedFileInput, config: ContextCompilerConfig): OptimizationResult {
+  const tokenizer = createTokenizer(config.tokenizer);
+  const report = buildReport(input.path, input.content, input.ext, tokenizer.tokenizer, {
+    tokenizer: { id: tokenizer.id },
+    warningThresholds: config.lint.warnings,
+  });
+  const transforms = buildTransforms({
+    enabledTransformIds: config.optimize.transforms.enabled,
+    disabledTransformIds: config.optimize.transforms.disabled,
+    thresholds: {
+      truncateToolOutputTokens: config.optimize.thresholds.truncateToolOutputTokens,
+      trimOversizedExamplesPercent: config.optimize.thresholds.trimOversizedExamplesPercent,
+    },
+  });
+
+  return runOptimize(input.path, input.content, report, transforms, tokenizer.tokenizer);
+}
+
+export async function optimizeFilePath(filePath: string, config: ContextCompilerConfig): Promise<OptimizationResult> {
+  return optimizeInput(await loadFileInput(filePath), config);
+}
+
+export async function optimizeDirectory(
+  directoryPath: string,
+  config: ContextCompilerConfig,
+  options: { write?: boolean } = {},
+): Promise<OptimizeDirectoryResult> {
+  const filePaths = await discoverSupportedFiles(directoryPath);
+  const files: OptimizationResult[] = [];
+
+  for (const filePath of filePaths) {
+    files.push(await runForFile(filePath, 'optimize', () => optimizeFilePath(filePath, config)));
+  }
+
+  let filesWritten = 0;
+  if (options.write) {
+    for (const result of files) {
+      if (result.appliedChanges.length === 0) continue;
+      try {
+        await writeFile(result.path, result.optimizedContent, 'utf8');
+        filesWritten++;
+      } catch (err) {
+        throw new Error(`Failed to write ${result.path}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  return {
+    path: directoryPath,
+    kind: 'directory',
+    files,
+    summary: {
+      filesProcessed: files.length,
+      filesChanged: files.filter(result => result.appliedChanges.length > 0).length,
+      filesWritten,
+      totalOriginalTokens: files.reduce((sum, result) => sum + result.originalTokens, 0),
+      totalOptimizedTokens: files.reduce((sum, result) => sum + result.optimizedTokens, 0),
+      totalSavings: files.reduce((sum, result) => sum + result.tokenSavings, 0),
+      totalChangesApplied: files.reduce((sum, result) => sum + result.appliedChanges.length, 0),
+    },
+  };
+}
+
+async function loadFileInput(filePath: string): Promise<LoadedFileInput> {
+  return {
+    path: filePath,
+    content: await loadFile(filePath),
+    ext: extname(filePath).toLowerCase(),
+  };
+}
+
+async function runForFile<T>(filePath: string, command: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    throw new Error(`Failed to ${command} ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+function countIssuesBySeverity(issues: AnalysisIssue[]): IssueSeverityCounts {
+  return issues.reduce<IssueSeverityCounts>(
+    (counts, issue) => {
+      counts[issue.severity]++;
+      return counts;
+    },
+    { error: 0, warning: 0, info: 0 },
+  );
+}
