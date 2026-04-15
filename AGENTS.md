@@ -24,6 +24,8 @@ pnpm cc lint examples
 pnpm cc optimize examples/basic-prompt.md --dry-run
 pnpm cc optimize examples --dry-run
 pnpm cc optimize examples/basic-prompt.md --dry-run --diff
+pnpm cc optimize examples/basic-prompt.md --dry-run --only remove-exact-duplicates
+pnpm cc optimize examples --dry-run --except truncate-tool-output
 pnpm cc analyze examples/protected-prompt.md
 
 # Single package

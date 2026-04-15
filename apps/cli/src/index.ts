@@ -24,6 +24,7 @@ import {
   optimizeInput,
 } from './batch.js';
 import { isFileLikeInput, isPathInput, resolveCliInput } from './input.js';
+import { parseOptimizeControls } from './optimize-controls.js';
 
 const [, , command = 'help', ...args] = process.argv;
 
@@ -47,6 +48,8 @@ Options:
   --dry-run    Show what would change without writing (optimize only)
   --write      Write optimized content back to the file (optimize only)
   --diff       Show compact before/after snippets (optimize only)
+  --only       Run only the listed optimize transform IDs (comma-separated)
+  --except     Run all default optimize transforms except the listed IDs
 
 Version: 0.1.0
 `);
@@ -117,6 +120,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
     const diff = parsed.flags.has('diff');
     const write = parsed.flags.has('write');
     const shouldWrite = write && !dryRun;
+    const controls = parseOptimizeControls(parsed, KNOWN_TRANSFORM_IDS);
     const input = await resolveCliInput(parsed, {
       command: 'optimize',
       usage: usageFor('optimize'),
@@ -132,7 +136,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
     if (input.kind === 'directory') {
-      const result = await optimizeDirectory(input.path, config, { write: shouldWrite });
+      const result = await optimizeDirectory(input.path, config, { write: shouldWrite, controls });
       console.log(
         jsonFlag
           ? renderOptimizeDirectoryJson(result)
@@ -145,7 +149,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
       throw new Error('optimize requires file, --text, or --stdin input');
     }
 
-    const result = optimizeInput(input, config);
+    const result = optimizeInput(input, config, controls);
     const wroteFile = shouldWrite && result.appliedChanges.length > 0;
 
     if (wroteFile) {
@@ -219,7 +223,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
 
     const key = arg.slice(2);
-    if (key === 'config' || key === 'text') {
+    if (key === 'config' || key === 'text' || key === 'only' || key === 'except') {
       const value = argv[i + 1];
       if (value === undefined || value.startsWith('--')) {
         throw new Error(`missing value for --${key}`);
@@ -238,5 +242,5 @@ function parseArgs(argv: string[]): ParsedArgs {
 function usageFor(command: 'analyze' | 'lint' | 'optimize'): string {
   const base = `context-compiler ${command} <file-or-directory> [--text <text>] [--stdin] [--json] [--config <path>]`;
   if (command !== 'optimize') return base;
-  return `${base} [--dry-run] [--write] [--diff]`;
+  return `${base} [--dry-run] [--write] [--diff] [--only <ids>] [--except <ids>]`;
 }

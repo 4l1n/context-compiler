@@ -7,6 +7,7 @@ import {
   analyzeDirectory,
   lintDirectory,
   optimizeDirectory,
+  optimizeInput,
 } from './batch.js';
 
 describe('directory batch orchestration', () => {
@@ -62,6 +63,45 @@ describe('directory batch orchestration', () => {
       expect(result.summary.filesWritten).toBe(0);
       expect(result.summary.totalChangesApplied).toBe(1);
       expect(result.summary.totalSavings).toBeGreaterThan(0);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('applies --only optimize controls and records transform metadata', () => {
+    const result = optimizeInput(
+      {
+        path: '<text>',
+        content: 'Repeat this.\n\nRepeat this.',
+        ext: '.txt',
+      },
+      defaultConfig,
+      { mode: 'only', requestedIds: ['remove-exact-duplicates'] },
+    );
+
+    expect(result.appliedChanges.map(change => change.transformId)).toEqual([
+      'remove-exact-duplicates',
+    ]);
+    expect(result.transformSelection).toEqual({
+      mode: 'only',
+      activeTransformIds: ['remove-exact-duplicates'],
+      requestedIds: ['remove-exact-duplicates'],
+    });
+  });
+
+  it('applies --except optimize controls in directory mode', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'context-compiler-batch-'));
+    try {
+      await writeFile(join(cwd, 'a.md'), 'Repeat this.\n\nRepeat this.', 'utf8');
+
+      const result = await optimizeDirectory(cwd, defaultConfig, {
+        controls: { mode: 'except', requestedIds: ['remove-exact-duplicates'] },
+      });
+
+      expect(result.summary.filesChanged).toBe(0);
+      expect(result.transformSelection?.mode).toBe('except');
+      expect(result.transformSelection?.requestedIds).toEqual(['remove-exact-duplicates']);
+      expect(result.transformSelection?.activeTransformIds).not.toContain('remove-exact-duplicates');
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }

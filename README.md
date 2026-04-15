@@ -54,9 +54,9 @@ pnpm cc lint <file-or-directory> [--json] [--config <path>]
 pnpm cc lint --text "<raw content>" [--json] [--config <path>]
 pnpm cc lint --stdin [--json] [--config <path>]
 
-pnpm cc optimize <file-or-directory> [--dry-run] [--write] [--diff] [--json] [--config <path>]
-pnpm cc optimize --text "<raw content>" [--dry-run] [--diff] [--json] [--config <path>]
-pnpm cc optimize --stdin [--dry-run] [--diff] [--json] [--config <path>]
+pnpm cc optimize <file-or-directory> [--dry-run] [--write] [--diff] [--only <ids>] [--except <ids>] [--json] [--config <path>]
+pnpm cc optimize --text "<raw content>" [--dry-run] [--diff] [--only <ids>] [--except <ids>] [--json] [--config <path>]
+pnpm cc optimize --stdin [--dry-run] [--diff] [--only <ids>] [--except <ids>] [--json] [--config <path>]
 ```
 
 You can also run the built CLI directly:
@@ -122,6 +122,13 @@ pnpm cc optimize --text "Be concise. Be concise." --dry-run
 echo "Be concise. Be concise." | pnpm cc optimize --stdin --dry-run
 ```
 
+Run a specific transform set:
+
+```bash
+pnpm cc optimize examples/basic-prompt.md --dry-run --only remove-exact-duplicates
+pnpm cc optimize examples --dry-run --except truncate-tool-output
+```
+
 Write changes:
 
 ```bash
@@ -136,6 +143,8 @@ pnpm cc optimize examples/basic-prompt.md --dry-run --json
 ```
 
 `--diff` adds compact before/after snippets for each applied change. `--json` takes precedence when both flags are provided.
+
+`--only` and `--except` accept comma-separated transform IDs. They are mutually exclusive, validate IDs before running, and apply to file, text, stdin, and directory inputs.
 
 ## Directory Mode
 

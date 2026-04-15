@@ -36,6 +36,21 @@ describe('renderOptimizeText', () => {
     expect(out).toContain('Tokenizer: o200k_base');
   });
 
+  it('shows active transform filtering when present', () => {
+    const out = renderOptimizeText(
+      {
+        ...baseResult,
+        transformSelection: {
+          mode: 'only',
+          activeTransformIds: ['remove-exact-duplicates'],
+          requestedIds: ['remove-exact-duplicates'],
+        },
+      },
+      { dryRun: true },
+    );
+    expect(out).toContain('Transforms: only remove-exact-duplicates');
+  });
+
   it('shows change reason and before preview', () => {
     const out = renderOptimizeText(baseResult, { dryRun: true });
     expect(out).toContain('remove-exact-duplicates');
@@ -121,6 +136,24 @@ describe('renderOptimizeJson', () => {
       tokenizer: { id: string };
     };
     expect(parsed.tokenizer.id).toBe('o200k_base');
+  });
+
+  it('includes transform selection metadata when present', () => {
+    const parsed = JSON.parse(
+      renderOptimizeJson({
+        ...baseResult,
+        transformSelection: {
+          mode: 'except',
+          activeTransformIds: ['collapse-formatting-rules'],
+          requestedIds: ['remove-exact-duplicates'],
+        },
+      }),
+    ) as { transformSelection: { mode: string; activeTransformIds: string[]; requestedIds: string[] } };
+    expect(parsed.transformSelection).toEqual({
+      mode: 'except',
+      activeTransformIds: ['collapse-formatting-rules'],
+      requestedIds: ['remove-exact-duplicates'],
+    });
   });
 
   it('is unchanged by diff rendering options handled by the CLI', () => {

@@ -20,6 +20,13 @@ pnpm cc optimize examples --dry-run
 pnpm cc optimize examples --dry-run --diff
 ```
 
+Limit which optimize transforms run:
+
+```bash
+pnpm cc optimize examples/basic-prompt.md --dry-run --only remove-exact-duplicates
+pnpm cc optimize examples --dry-run --except truncate-tool-output
+```
+
 Use the example config explicitly:
 
 ```bash

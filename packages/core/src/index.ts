@@ -8,6 +8,7 @@ export type {
   AnalysisReport,
   ChangeType,
   OptimizationChange,
+  OptimizeTransformSelection,
   OptimizationResult,
   ITokenizer,
 } from './types.js';

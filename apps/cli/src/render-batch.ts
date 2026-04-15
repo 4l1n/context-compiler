@@ -4,6 +4,7 @@ import type {
   LintDirectoryResult,
   OptimizeDirectoryResult,
 } from './batch.js';
+import { formatTransformSelection } from './render-optimize.js';
 
 const HR = '─'.repeat(52);
 
@@ -74,6 +75,10 @@ export function renderOptimizeDirectoryText(
   const lines: string[] = [];
   lines.push(`\nOptimize: ${result.path}`);
   lines.push(HR);
+  const transformSelectionLine = formatTransformSelection(result.transformSelection);
+  if (transformSelectionLine) {
+    lines.push(transformSelectionLine);
+  }
   lines.push('Files:');
 
   for (const file of result.files) {

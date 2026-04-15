@@ -82,6 +82,19 @@ describe('directory batch renderers', () => {
     expect(text).toContain('Files not written. Use --write to apply directory changes.');
   });
 
+  it('renders optimize directory transform filtering once', () => {
+    const result = {
+      ...optimizeDirectoryResult(),
+      transformSelection: {
+        mode: 'only' as const,
+        activeTransformIds: ['remove-exact-duplicates'],
+        requestedIds: ['remove-exact-duplicates'],
+      },
+    };
+    const text = renderOptimizeDirectoryText(result);
+    expect(text.match(/Transforms: only remove-exact-duplicates/g) ?? []).toHaveLength(1);
+  });
+
   it('renders optimize directory diff only for changed files', () => {
     const result = optimizeDirectoryResult();
     const text = renderOptimizeDirectoryText(result, { diff: true });
@@ -91,9 +104,19 @@ describe('directory batch renderers', () => {
   });
 
   it('renders optimize directory JSON', () => {
-    const parsed = JSON.parse(renderOptimizeDirectoryJson(optimizeDirectoryResult())) as OptimizeDirectoryResult;
+    const parsed = JSON.parse(
+      renderOptimizeDirectoryJson({
+        ...optimizeDirectoryResult(),
+        transformSelection: {
+          mode: 'except',
+          activeTransformIds: ['collapse-formatting-rules'],
+          requestedIds: ['remove-exact-duplicates'],
+        },
+      }),
+    ) as OptimizeDirectoryResult;
     expect(parsed.kind).toBe('directory');
     expect(parsed.summary.filesChanged).toBe(1);
+    expect(parsed.transformSelection?.mode).toBe('except');
   });
 });
 

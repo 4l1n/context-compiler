@@ -1,12 +1,18 @@
 import { writeFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { loadFile, buildReport, runOptimize, buildTransforms } from '@context-compiler/core';
-import type { AnalysisIssue, AnalysisReport, OptimizationResult } from '@context-compiler/core';
+import type {
+  AnalysisIssue,
+  AnalysisReport,
+  OptimizationResult,
+  OptimizeTransformSelection,
+} from '@context-compiler/core';
 import { buildRules, runLint } from '@context-compiler/rules';
 import type { LintResult } from '@context-compiler/rules';
 import { createTokenizer } from '@context-compiler/tokenizers';
 import type { ContextCompilerConfig } from '@context-compiler/config';
 import { discoverSupportedFiles } from './discovery.js';
+import type { OptimizeControls } from './optimize-controls.js';
 
 export type AnalyzeDirectorySummary = {
   filesProcessed: number;
@@ -60,6 +66,7 @@ export type OptimizeDirectorySummary = {
 export type OptimizeDirectoryResult = {
   path: string;
   kind: 'directory';
+  transformSelection?: OptimizeTransformSelection;
   files: OptimizationResult[];
   summary: OptimizeDirectorySummary;
 };
@@ -157,38 +164,43 @@ export async function lintDirectory(
   };
 }
 
-export function optimizeInput(input: LoadedFileInput, config: ContextCompilerConfig): OptimizationResult {
+export function optimizeInput(
+  input: LoadedFileInput,
+  config: ContextCompilerConfig,
+  controls: OptimizeControls = { mode: 'default' },
+): OptimizationResult {
   const tokenizer = createTokenizer(config.tokenizer);
   const report = buildReport(input.path, input.content, input.ext, tokenizer.tokenizer, {
     tokenizer: { id: tokenizer.id },
     warningThresholds: config.lint.warnings,
   });
-  const transforms = buildTransforms({
-    enabledTransformIds: config.optimize.transforms.enabled,
-    disabledTransformIds: config.optimize.transforms.disabled,
-    thresholds: {
-      truncateToolOutputTokens: config.optimize.thresholds.truncateToolOutputTokens,
-      trimOversizedExamplesPercent: config.optimize.thresholds.trimOversizedExamplesPercent,
-    },
-  });
+  const { transforms, transformSelection } = buildOptimizeRuntime(config, controls);
 
-  return runOptimize(input.path, input.content, report, transforms, tokenizer.tokenizer);
+  return {
+    ...runOptimize(input.path, input.content, report, transforms, tokenizer.tokenizer),
+    transformSelection,
+  };
 }
 
-export async function optimizeFilePath(filePath: string, config: ContextCompilerConfig): Promise<OptimizationResult> {
-  return optimizeInput(await loadFileInput(filePath), config);
+export async function optimizeFilePath(
+  filePath: string,
+  config: ContextCompilerConfig,
+  controls: OptimizeControls = { mode: 'default' },
+): Promise<OptimizationResult> {
+  return optimizeInput(await loadFileInput(filePath), config, controls);
 }
 
 export async function optimizeDirectory(
   directoryPath: string,
   config: ContextCompilerConfig,
-  options: { write?: boolean } = {},
+  options: { write?: boolean; controls?: OptimizeControls } = {},
 ): Promise<OptimizeDirectoryResult> {
   const filePaths = await discoverSupportedFiles(directoryPath);
   const files: OptimizationResult[] = [];
+  const controls = options.controls ?? { mode: 'default' };
 
   for (const filePath of filePaths) {
-    files.push(await runForFile(filePath, 'optimize', () => optimizeFilePath(filePath, config)));
+    files.push(await runForFile(filePath, 'optimize', () => optimizeFilePath(filePath, config, controls)));
   }
 
   let filesWritten = 0;
@@ -207,6 +219,7 @@ export async function optimizeDirectory(
   return {
     path: directoryPath,
     kind: 'directory',
+    transformSelection: files[0]?.transformSelection,
     files,
     summary: {
       filesProcessed: files.length,
@@ -216,6 +229,45 @@ export async function optimizeDirectory(
       totalOptimizedTokens: files.reduce((sum, result) => sum + result.optimizedTokens, 0),
       totalSavings: files.reduce((sum, result) => sum + result.tokenSavings, 0),
       totalChangesApplied: files.reduce((sum, result) => sum + result.appliedChanges.length, 0),
+    },
+  };
+}
+
+function buildOptimizeRuntime(
+  config: ContextCompilerConfig,
+  controls: OptimizeControls,
+): {
+  transforms: ReturnType<typeof buildTransforms>;
+  transformSelection: OptimizeTransformSelection;
+} {
+  const enabledTransformIds =
+    controls.mode === 'only'
+      ? controls.requestedIds
+      : controls.mode === 'default'
+        ? config.optimize.transforms.enabled
+        : [];
+  const disabledTransformIds =
+    controls.mode === 'except'
+      ? controls.requestedIds
+      : controls.mode === 'default'
+        ? config.optimize.transforms.disabled
+        : [];
+
+  const transforms = buildTransforms({
+    enabledTransformIds,
+    disabledTransformIds,
+    thresholds: {
+      truncateToolOutputTokens: config.optimize.thresholds.truncateToolOutputTokens,
+      trimOversizedExamplesPercent: config.optimize.thresholds.trimOversizedExamplesPercent,
+    },
+  });
+
+  return {
+    transforms,
+    transformSelection: {
+      mode: controls.mode,
+      activeTransformIds: transforms.map(transform => transform.id),
+      ...(controls.requestedIds ? { requestedIds: controls.requestedIds } : {}),
     },
   };
 }

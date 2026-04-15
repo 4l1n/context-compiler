@@ -1,4 +1,8 @@
-import type { OptimizationResult, OptimizationChange } from '@context-compiler/core';
+import type {
+  OptimizationResult,
+  OptimizationChange,
+  OptimizeTransformSelection,
+} from '@context-compiler/core';
 
 const HR = '─'.repeat(52);
 
@@ -22,6 +26,10 @@ export function renderOptimizeText(
   lines.push(HR);
   if (result.tokenizer) {
     lines.push(`Tokenizer: ${result.tokenizer.id}`);
+  }
+  const transformSelectionLine = formatTransformSelection(result.transformSelection);
+  if (transformSelectionLine) {
+    lines.push(transformSelectionLine);
   }
 
   if (result.appliedChanges.length === 0) {
@@ -96,4 +104,10 @@ function preview(text: string, maxLen = 72): string {
  */
 export function renderOptimizeJson(result: OptimizationResult): string {
   return JSON.stringify(result, null, 2);
+}
+
+export function formatTransformSelection(selection?: OptimizeTransformSelection): string | undefined {
+  if (!selection || selection.mode === 'default') return undefined;
+  const requested = selection.requestedIds?.join(', ') ?? '';
+  return `Transforms: ${selection.mode} ${requested}`;
 }

@@ -81,9 +81,16 @@ export type OptimizationChange = {
   tokenDelta: number; // negative = savings; not guaranteed to be negative
 };
 
+export type OptimizeTransformSelection = {
+  mode: 'default' | 'only' | 'except';
+  activeTransformIds: string[];
+  requestedIds?: string[];
+};
+
 export type OptimizationResult = {
   path: string;
   tokenizer?: TokenizerMetadata;
+  transformSelection?: OptimizeTransformSelection;
   originalContent: string;
   optimizedContent: string;
   originalTokens: number;
