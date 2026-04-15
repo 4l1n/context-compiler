@@ -15,6 +15,10 @@ function toolBlock(id: string, content: string): AnalyzedBlock {
   return { id, content, type: 'tool_output', tokenCount: tok.count(content), tokenPercent: 0 };
 }
 
+function protectedToolBlock(id: string, content: string): AnalyzedBlock {
+  return { ...toolBlock(id, content), metadata: { protected: true } };
+}
+
 /** Build a block whose tokenCount exceeds the threshold. */
 function bigToolBlock(id: string, lineCount = 60): AnalyzedBlock {
   // Each word-line has 2 tokens; 60 lines → 120 tokens > TOOL_OUTPUT_TOKEN_THRESHOLD if threshold is low.
@@ -140,6 +144,18 @@ describe('truncate-tool-output', () => {
       tokenizer: tok,
     });
     expect(out[0]?.content).toBe(content);
+    expect(changes).toHaveLength(0);
+  });
+
+  it('does not truncate protected tool output', () => {
+    const big = protectedToolBlock('b1', bigToolBlock('b1').content);
+    expect(big.tokenCount).toBeGreaterThan(TOOL_OUTPUT_TOKEN_THRESHOLD);
+    const { blocks: out, changes } = truncateToolOutput.apply({
+      blocks: [big],
+      totalTokens: big.tokenCount,
+      tokenizer: tok,
+    });
+    expect(out[0]?.content).toBe(big.content);
     expect(changes).toHaveLength(0);
   });
 });

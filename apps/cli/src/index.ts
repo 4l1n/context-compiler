@@ -36,6 +36,7 @@ Options:
   --stdin      Read input from stdin instead of a file path
   --dry-run    Show what would change without writing (optimize only)
   --write      Write optimized content back to the file (optimize only)
+  --diff       Show compact before/after snippets (optimize only)
 
 Version: 0.1.0
 `);
@@ -109,6 +110,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
     const parsed = parseArgs(argv);
     const jsonFlag = parsed.flags.has('json');
     const dryRun = parsed.flags.has('dry-run');
+    const diff = parsed.flags.has('diff');
     const write = parsed.flags.has('write');
     const shouldWrite = write && !dryRun;
     const input = await resolveCliInput(parsed, {
@@ -152,6 +154,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
           dryRun: !wroteFile,
           wroteFile,
           canWrite: isPathInput(input),
+          diff,
         }),
       );
     }
@@ -233,5 +236,5 @@ function parseArgs(argv: string[]): ParsedArgs {
 function usageFor(command: 'analyze' | 'lint' | 'optimize'): string {
   const base = `context-compiler ${command} <file> [--text <text>] [--stdin] [--json] [--config <path>]`;
   if (command !== 'optimize') return base;
-  return `${base} [--dry-run] [--write]`;
+  return `${base} [--dry-run] [--write] [--diff]`;
 }

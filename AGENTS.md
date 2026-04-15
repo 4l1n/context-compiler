@@ -20,6 +20,8 @@ pnpm cc analyze --text "Be concise. Be concise."
 echo "Be concise. Be concise." | pnpm cc analyze --stdin
 pnpm cc lint examples/basic-prompt.md
 pnpm cc optimize examples/basic-prompt.md --dry-run
+pnpm cc optimize examples/basic-prompt.md --dry-run --diff
+pnpm cc analyze examples/protected-prompt.md
 
 # Single package
 pnpm --filter @context-compiler/core build

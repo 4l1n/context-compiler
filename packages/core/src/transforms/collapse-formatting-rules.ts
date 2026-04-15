@@ -1,5 +1,6 @@
 import type { ITransform, TransformContext, TransformResult } from './types.js';
 import type { AnalyzedBlock, BlockType, OptimizationChange } from '../types.js';
+import { isProtectedBlock } from '../protection.js';
 
 /**
  * collapse-formatting-rules
@@ -89,6 +90,7 @@ export const collapseFormattingRules: ITransform = {
     const changes: OptimizationChange[] = [];
 
     const newBlocks: AnalyzedBlock[] = blocks.map(block => {
+      if (isProtectedBlock(block)) return block;
       if (!ELIGIBLE_TYPES.has(block.type)) return block;
 
       const lines = block.content.split('\n');

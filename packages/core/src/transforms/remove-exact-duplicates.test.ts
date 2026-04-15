@@ -11,6 +11,10 @@ function block(id: string, content: string): AnalyzedBlock {
   return { id, content, type: 'instruction', tokenCount: tok.count(content), tokenPercent: 0 };
 }
 
+function protectedBlock(id: string, content: string): AnalyzedBlock {
+  return { ...block(id, content), metadata: { protected: true } };
+}
+
 describe('remove-exact-duplicates', () => {
   it('returns all blocks unchanged when no duplicates', () => {
     const blocks = [block('b1', 'Hello'), block('b2', 'World')];
@@ -73,5 +77,21 @@ describe('remove-exact-duplicates', () => {
     const { blocks: out } = removeExactDuplicates.apply({ blocks, totalTokens: 6, tokenizer: tok });
     // b2 is NOT removed — its content as a whole block differs from b1
     expect(out).toHaveLength(2);
+  });
+
+  it('does not remove protected duplicate blocks', () => {
+    const content = 'You are an assistant.';
+    const blocks = [block('b1', content), protectedBlock('b2', content)];
+    const { blocks: out, changes } = removeExactDuplicates.apply({ blocks, totalTokens: 8, tokenizer: tok });
+    expect(out.map(b => b.id)).toEqual(['b1', 'b2']);
+    expect(changes).toHaveLength(0);
+  });
+
+  it('does not use protected blocks for duplicate detection', () => {
+    const content = 'You are an assistant.';
+    const blocks = [protectedBlock('b1', content), block('b2', content)];
+    const { blocks: out, changes } = removeExactDuplicates.apply({ blocks, totalTokens: 8, tokenizer: tok });
+    expect(out.map(b => b.id)).toEqual(['b1', 'b2']);
+    expect(changes).toHaveLength(0);
   });
 });

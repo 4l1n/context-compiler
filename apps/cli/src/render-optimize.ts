@@ -6,6 +6,7 @@ export type OptimizeRenderOptions = {
   dryRun?: boolean;
   wroteFile?: boolean;
   canWrite?: boolean;
+  diff?: boolean;
 };
 
 /**
@@ -41,7 +42,11 @@ export function renderOptimizeText(
   lines.push('');
 
   for (const change of result.appliedChanges) {
-    renderChangeText(lines, change);
+    if (options.diff) {
+      renderChangeDiffText(lines, change);
+    } else {
+      renderChangeText(lines, change);
+    }
   }
 
   if (options.wroteFile) {
@@ -66,6 +71,15 @@ function renderChangeText(lines: string[], change: OptimizationChange): void {
     const afterPreview = preview(change.after);
     lines.push(`    after:  "${afterPreview}"`);
   }
+  lines.push('');
+}
+
+function renderChangeDiffText(lines: string[], change: OptimizationChange): void {
+  const blockLabel = change.blockIds.join(', ');
+  const delta = change.tokenDelta >= 0 ? `+${change.tokenDelta}` : String(change.tokenDelta);
+  lines.push(`  ${change.transformId} [${blockLabel}] (${delta} tok)`);
+  lines.push(`    before: "${preview(change.before, 96)}"`);
+  lines.push(`    after:  "${change.after === undefined ? '<removed>' : preview(change.after, 96)}"`);
   lines.push('');
 }
 

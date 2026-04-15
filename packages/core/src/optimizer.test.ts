@@ -182,6 +182,85 @@ describe('runOptimize — coherence validation', () => {
       runOptimize('/tmp/test.md', content, report, [removeExactDuplicates], tok),
     ).not.toThrow();
   });
+
+  it('preserves protected blocks with default transforms', () => {
+    const content = [
+      'You are an assistant.',
+      '<!-- context-compiler: protect:start -->',
+      'You are an assistant.',
+      'Be concise.',
+      '<!-- context-compiler: protect:end -->',
+      'You are an assistant.',
+    ].join('\n\n');
+    const report = makeReport(content);
+    const protectedBlock = report.blocks.find(block => block.metadata?.protected === true);
+    const result = runOptimize('/tmp/test.md', content, report, DEFAULT_TRANSFORMS, tok);
+    expect(protectedBlock).toBeDefined();
+    expect(result.optimizedContent).toContain(protectedBlock?.content);
+  });
+
+  it('throws when a transform removes a protected block', () => {
+    const content = [
+      '<!-- context-compiler: protect:start -->',
+      'Do not change this.',
+      '<!-- context-compiler: protect:end -->',
+    ].join('\n');
+    const report = makeReport(content);
+    const removeProtected: ITransform = {
+      id: 'remove-protected',
+      description: 'test-only protected removal',
+      apply(): TransformResult {
+        return { blocks: [], changes: [] };
+      },
+    };
+    expect(() => runOptimize('/tmp/test.md', content, report, [removeProtected], tok)).toThrow(
+      'removed protected block',
+    );
+  });
+
+  it('throws when a transform modifies a protected block', () => {
+    const content = [
+      '<!-- context-compiler: protect:start -->',
+      'Do not change this.',
+      '<!-- context-compiler: protect:end -->',
+    ].join('\n');
+    const report = makeReport(content);
+    const modifyProtected: ITransform = {
+      id: 'modify-protected',
+      description: 'test-only protected modification',
+      apply(ctx: TransformContext): TransformResult {
+        return {
+          blocks: ctx.blocks.map(block => ({ ...block, content: `${block.content}\nchanged` })),
+          changes: [],
+        };
+      },
+    };
+    expect(() => runOptimize('/tmp/test.md', content, report, [modifyProtected], tok)).toThrow(
+      'modified protected block',
+    );
+  });
+
+  it('throws when a transform strips protected metadata', () => {
+    const content = [
+      '<!-- context-compiler: protect:start -->',
+      'Do not change this.',
+      '<!-- context-compiler: protect:end -->',
+    ].join('\n');
+    const report = makeReport(content);
+    const stripProtectedMetadata: ITransform = {
+      id: 'strip-protected-metadata',
+      description: 'test-only protected metadata removal',
+      apply(ctx: TransformContext): TransformResult {
+        return {
+          blocks: ctx.blocks.map(block => ({ ...block, metadata: undefined })),
+          changes: [],
+        };
+      },
+    };
+    expect(() => runOptimize('/tmp/test.md', content, report, [stripProtectedMetadata], tok)).toThrow(
+      'modified protected block',
+    );
+  });
 });
 
 describe('runOptimize — transforms run sequentially', () => {

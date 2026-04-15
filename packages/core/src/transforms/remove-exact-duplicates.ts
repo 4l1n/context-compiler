@@ -1,5 +1,6 @@
 import type { ITransform, TransformContext, TransformResult } from './types.js';
 import type { OptimizationChange } from '../types.js';
+import { isProtectedBlock } from '../protection.js';
 
 /**
  * remove-exact-duplicates
@@ -19,6 +20,11 @@ export const removeExactDuplicates: ITransform = {
     const kept: typeof blocks = [];
 
     for (const block of blocks) {
+      if (isProtectedBlock(block)) {
+        kept.push(block);
+        continue;
+      }
+
       const key = block.content.trim();
       const firstId = seen.get(key);
 

@@ -57,6 +57,36 @@ describe('renderOptimizeText', () => {
     expect(out).toContain('File written: /tmp/prompt.md');
   });
 
+  it('renders compact diff output', () => {
+    const out = renderOptimizeText(baseResult, { dryRun: true, diff: true });
+    expect(out).toContain('remove-exact-duplicates [block-1, block-2] (-4 tok)');
+    expect(out).toContain('before:');
+    expect(out).toContain('after:');
+    expect(out).toContain('<removed>');
+  });
+
+  it('renders after snippet for replace changes in diff output', () => {
+    const out = renderOptimizeText(
+      {
+        ...baseResult,
+        appliedChanges: [
+          {
+            type: 'replace',
+            transformId: 'collapse-formatting-rules',
+            blockIds: ['block-1'],
+            before: 'Be concise.\nUse markdown.',
+            after: 'Use markdown.',
+            reason: 'test',
+            tokenDelta: -2,
+          },
+        ],
+      },
+      { dryRun: true, diff: true },
+    );
+    expect(out).toContain('collapse-formatting-rules [block-1] (-2 tok)');
+    expect(out).toContain('after:  "Use markdown."');
+  });
+
   it('renders no-change result without write status noise', () => {
     const result: OptimizationResult = {
       ...baseResult,
@@ -77,6 +107,11 @@ describe('renderOptimizeJson', () => {
   });
 
   it('includes appliedChanges', () => {
+    const parsed = JSON.parse(renderOptimizeJson(baseResult)) as { appliedChanges: unknown[] };
+    expect(parsed.appliedChanges).toHaveLength(1);
+  });
+
+  it('is unchanged by diff rendering options handled by the CLI', () => {
     const parsed = JSON.parse(renderOptimizeJson(baseResult)) as { appliedChanges: unknown[] };
     expect(parsed.appliedChanges).toHaveLength(1);
   });

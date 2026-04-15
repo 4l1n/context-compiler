@@ -11,6 +11,10 @@ function block(id: string, content: string, type: BlockType = 'instruction'): An
   return { id, content, type, tokenCount: tok.count(content), tokenPercent: 0 };
 }
 
+function protectedBlock(id: string, content: string, type: BlockType = 'instruction'): AnalyzedBlock {
+  return { ...block(id, content, type), metadata: { protected: true } };
+}
+
 describe('collapse-formatting-rules', () => {
   it('returns blocks unchanged when no formatting directive is repeated', () => {
     const blocks = [block('b1', 'You are helpful.'), block('b2', 'Do not lie.')];
@@ -128,6 +132,30 @@ describe('collapse-formatting-rules', () => {
       tokenizer: tok,
     });
     expect(out[1]?.content).toBe('Be concise.');
+    expect(changes).toHaveLength(0);
+  });
+
+  it('does not remove repeated formatting from protected blocks', () => {
+    const b1 = block('b1', 'You are an assistant.\nBe concise.');
+    const b2 = protectedBlock('b2', 'Follow these rules.\nBe concise.\nAvoid jargon.');
+    const { blocks: out, changes } = collapseFormattingRules.apply({
+      blocks: [b1, b2],
+      totalTokens: 20,
+      tokenizer: tok,
+    });
+    expect(out[1]?.content).toBe(b2.content);
+    expect(changes).toHaveLength(0);
+  });
+
+  it('does not use protected blocks for repeated formatting detection', () => {
+    const b1 = protectedBlock('b1', 'Protected wording.\nBe concise.');
+    const b2 = block('b2', 'Follow these rules.\nBe concise.\nAvoid jargon.');
+    const { blocks: out, changes } = collapseFormattingRules.apply({
+      blocks: [b1, b2],
+      totalTokens: 20,
+      tokenizer: tok,
+    });
+    expect(out[1]?.content).toBe(b2.content);
     expect(changes).toHaveLength(0);
   });
 });

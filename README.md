@@ -11,6 +11,7 @@ It helps you understand what is inside a prompt/context file before you send it 
 - Counts approximate tokens with the current char tokenizer.
 - Reports warnings and lint issues for prompt/context debt.
 - Applies safe, deterministic optimize transforms with explicit change records.
+- Preserves explicit protected blocks during optimization.
 - Runs locally with no remote API calls.
 
 ## What It Does Not Do
@@ -53,9 +54,9 @@ pnpm cc lint <file> [--json] [--config <path>]
 pnpm cc lint --text "<raw content>" [--json] [--config <path>]
 pnpm cc lint --stdin [--json] [--config <path>]
 
-pnpm cc optimize <file> [--dry-run] [--write] [--json] [--config <path>]
-pnpm cc optimize --text "<raw content>" [--dry-run] [--json] [--config <path>]
-pnpm cc optimize --stdin [--dry-run] [--json] [--config <path>]
+pnpm cc optimize <file> [--dry-run] [--write] [--diff] [--json] [--config <path>]
+pnpm cc optimize --text "<raw content>" [--dry-run] [--diff] [--json] [--config <path>]
+pnpm cc optimize --stdin [--dry-run] [--diff] [--json] [--config <path>]
 ```
 
 You can also run the built CLI directly:
@@ -112,6 +113,7 @@ Preview changes:
 
 ```bash
 pnpm cc optimize examples/basic-prompt.md --dry-run
+pnpm cc optimize examples/basic-prompt.md --dry-run --diff
 pnpm cc optimize --text "Be concise. Be concise." --dry-run
 echo "Be concise. Be concise." | pnpm cc optimize --stdin --dry-run
 ```
@@ -126,6 +128,27 @@ Machine-readable output:
 
 ```bash
 pnpm cc optimize examples/basic-prompt.md --dry-run --json
+```
+
+`--diff` adds compact before/after snippets for each applied change. `--json` takes precedence when both flags are provided.
+
+## Protected Blocks
+
+Markdown and text inputs can mark content that optimize must preserve exactly:
+
+```markdown
+<!-- context-compiler: protect:start -->
+This block must stay unchanged.
+<!-- context-compiler: protect:end -->
+```
+
+Protected ranges become single blocks, including the marker lines. `analyze` marks them as `protected`, and `optimize` skips them for all current transforms. Nested markers or unmatched markers fail with an error that includes the input source.
+
+Try the protected example:
+
+```bash
+pnpm cc analyze examples/protected-prompt.md
+pnpm cc optimize examples/protected-prompt.md --dry-run --diff
 ```
 
 ## Configuration

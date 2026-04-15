@@ -8,6 +8,7 @@ pnpm build
 pnpm cc analyze examples/basic-prompt.md
 pnpm cc lint examples/basic-prompt.md
 pnpm cc optimize examples/basic-prompt.md --dry-run
+pnpm cc optimize examples/basic-prompt.md --dry-run --diff
 ```
 
 Use the example config explicitly:
@@ -28,6 +29,13 @@ pnpm cc optimize --text "Be concise. Be concise." --dry-run
 echo "Be concise. Be concise." | pnpm cc analyze --stdin
 echo "Be concise. Be concise." | pnpm cc lint --stdin
 echo "Be concise. Be concise." | pnpm cc optimize --stdin --dry-run
+```
+
+Use protected markers when specific markdown/text ranges must stay unchanged:
+
+```bash
+pnpm cc analyze examples/protected-prompt.md
+pnpm cc optimize examples/protected-prompt.md --dry-run --diff
 ```
 
 `optimize` does not write by default. Use `--write` only when you want to replace the input file with the optimized content.

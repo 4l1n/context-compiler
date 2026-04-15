@@ -11,6 +11,10 @@ function block(id: string, content: string, type: AnalyzedBlock['type'] = 'instr
   return { id, content, type, tokenCount: tok.count(content), tokenPercent: 0 };
 }
 
+function protectedBlock(id: string, content: string, type: AnalyzedBlock['type'] = 'instruction'): AnalyzedBlock {
+  return { ...block(id, content, type), metadata: { protected: true } };
+}
+
 function exampleLines(n: number): string {
   return Array.from({ length: n }, (_, i) => `Example line ${i + 1} here`).join('\n');
 }
@@ -109,6 +113,38 @@ describe('trim-oversized-examples', () => {
       tokenizer: tok,
     });
     expect(out[1]?.content).toBe(ex.content);
+    expect(changes).toHaveLength(0);
+  });
+
+  it('does not trim protected examples', () => {
+    const instr = block('b1', 'A.', 'instruction');
+    const ex = protectedBlock('b2', exampleLines(20), 'example');
+    const totalTokens = instr.tokenCount + ex.tokenCount;
+    const { blocks: out, changes } = trimOversizedExamples.apply({
+      blocks: [instr, ex],
+      totalTokens,
+      tokenizer: tok,
+    });
+    expect(out[1]?.content).toBe(ex.content);
+    expect(changes).toHaveLength(0);
+  });
+
+  it('excludes protected examples from example-budget calculations', () => {
+    const instr = block(
+      'b1',
+      Array.from({ length: 100 }, (_, i) => `instruction_${i}`).join(' '),
+      'instruction',
+    );
+    const protectedExample = protectedBlock('b2', exampleLines(20), 'example');
+    const smallExample = block('b3', exampleLines(6), 'example');
+    const totalTokens = instr.tokenCount + protectedExample.tokenCount + smallExample.tokenCount;
+    const { blocks: out, changes } = trimOversizedExamples.apply({
+      blocks: [instr, protectedExample, smallExample],
+      totalTokens,
+      tokenizer: tok,
+    });
+    expect(out[1]?.content).toBe(protectedExample.content);
+    expect(out[2]?.content).toBe(smallExample.content);
     expect(changes).toHaveLength(0);
   });
 });

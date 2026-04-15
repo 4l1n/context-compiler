@@ -16,6 +16,11 @@ export { loadFile } from './loader.js';
 export { parseBlocks } from './parser.js';
 export type { RawBlock } from './parser.js';
 export { classifyBlock } from './classifier.js';
+export {
+  isProtectedBlock,
+  PROTECT_START_MARKER,
+  PROTECT_END_MARKER,
+} from './protection.js';
 export { checkWarnings, WARN_THRESHOLDS, DEFAULT_WARNING_THRESHOLDS } from './warnings.js';
 export type { WarningThresholds } from './warnings.js';
 export { buildReport, analyze } from './analyzer.js';

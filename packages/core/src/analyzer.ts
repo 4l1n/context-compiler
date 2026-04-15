@@ -22,7 +22,7 @@ export function buildReport(
   tokenizer: ITokenizer,
   options: BuildReportOptions = {},
 ): AnalysisReport {
-  const rawBlocks = parseBlocks(content, ext);
+  const rawBlocks = parseBlocks(content, ext, filePath);
   const tokenCounts = rawBlocks.map(b => tokenizer.count(b.content));
   const totalTokens = tokenCounts.reduce((sum, n) => sum + n, 0);
 
@@ -34,6 +34,7 @@ export function buildReport(
       type: classifyBlock(block.content),
       tokenCount: count,
       tokenPercent: totalTokens > 0 ? Math.round((count / totalTokens) * 100) : 0,
+      metadata: block.metadata,
     };
   });
 

@@ -48,6 +48,20 @@ describe('renderText', () => {
     expect(output).toContain('block-1');
   });
 
+  it('marks protected blocks', () => {
+    const output = renderText({
+      ...baseReport,
+      blocks: [
+        {
+          ...baseReport.blocks[0]!,
+          metadata: { protected: true },
+        },
+      ],
+      totalBlocks: 1,
+    });
+    expect(output).toContain('protected');
+  });
+
   it('shows content preview', () => {
     const output = renderText(baseReport);
     expect(output).toContain('You are a helpful assistant');

@@ -71,6 +71,67 @@ describe('parseBlocks — fenced code blocks', () => {
   });
 });
 
+describe('parseBlocks — protected blocks', () => {
+  const protectedContent = [
+    '<!-- context-compiler: protect:start -->',
+    '# Protected',
+    'Be concise.',
+    '<!-- context-compiler: protect:end -->',
+  ].join('\n');
+
+  it('creates one protected block for a marker pair', () => {
+    const blocks = parseBlocks(`Intro.\n\n${protectedContent}\n\nOutro.`, '.md', 'sample.md');
+    expect(blocks).toHaveLength(3);
+    expect(blocks[1]?.metadata?.protected).toBe(true);
+  });
+
+  it('preserves marker lines inside protected block content', () => {
+    const blocks = parseBlocks(protectedContent, '.md', 'sample.md');
+    expect(blocks[0]?.content).toContain('<!-- context-compiler: protect:start -->');
+    expect(blocks[0]?.content).toContain('<!-- context-compiler: protect:end -->');
+  });
+
+  it('supports multiple protected ranges', () => {
+    const blocks = parseBlocks(`${protectedContent}\n\nMiddle.\n\n${protectedContent}`, '.txt', 'sample.txt');
+    expect(blocks.filter(block => block.metadata?.protected === true)).toHaveLength(2);
+  });
+
+  it('throws on unmatched start marker and includes source label', () => {
+    expect(() =>
+      parseBlocks('<!-- context-compiler: protect:start -->\nNo end.', '.md', '<text>'),
+    ).toThrow('<text>');
+  });
+
+  it('throws on unmatched end marker and includes source label', () => {
+    expect(() =>
+      parseBlocks('No start.\n<!-- context-compiler: protect:end -->', '.md', '<stdin>'),
+    ).toThrow('<stdin>');
+  });
+
+  it('throws on nested marker and includes source label', () => {
+    expect(() =>
+      parseBlocks(
+        [
+          '<!-- context-compiler: protect:start -->',
+          '<!-- context-compiler: protect:start -->',
+          '<!-- context-compiler: protect:end -->',
+        ].join('\n'),
+        '.md',
+        'nested.md',
+      ),
+    ).toThrow('nested.md');
+  });
+
+  it('does not parse protection markers in JSON input', () => {
+    const content = JSON.stringify({
+      value: '<!-- context-compiler: protect:start -->',
+    });
+    const blocks = parseBlocks(content, '.json', 'sample.json');
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]?.metadata).toBeUndefined();
+  });
+});
+
 describe('parseBlocks — empty input', () => {
   it('returns [] for empty string', () => {
     expect(parseBlocks('', '.md')).toHaveLength(0);

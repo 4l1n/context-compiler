@@ -9,6 +9,10 @@ export type PromptBlock = {
 
 // --- Block analysis ---
 
+export type BlockMetadata = {
+  protected?: boolean;
+} & Record<string, unknown>;
+
 export type BlockType =
   | 'instruction'
   | 'constraint'
@@ -25,6 +29,7 @@ export type AnalyzedBlock = {
   tokenCount: number;
   /** Integer 0–100, rounded. */
   tokenPercent: number;
+  metadata?: BlockMetadata;
 };
 
 // --- Issues ---

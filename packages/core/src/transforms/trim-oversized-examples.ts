@@ -1,5 +1,6 @@
 import type { ITransform, TransformContext, TransformResult } from './types.js';
 import type { AnalyzedBlock, OptimizationChange } from '../types.js';
+import { isProtectedBlock } from '../protection.js';
 
 /**
  * trim-oversized-examples
@@ -35,15 +36,20 @@ export function createTrimOversizedExamples(
     apply({ blocks, totalTokens, tokenizer }: TransformContext): TransformResult {
       if (totalTokens === 0) return { blocks, changes: [] };
 
-      const exampleBlocks = blocks.filter(b => b.type === 'example');
+      const unprotectedBlocks = blocks.filter(block => !isProtectedBlock(block));
+      const unprotectedTotalTokens = unprotectedBlocks.reduce((sum, block) => sum + block.tokenCount, 0);
+      if (unprotectedTotalTokens === 0) return { blocks, changes: [] };
+
+      const exampleBlocks = unprotectedBlocks.filter(b => b.type === 'example');
       const exampleTokens = exampleBlocks.reduce((s, b) => s + b.tokenCount, 0);
-      const examplePercent = (exampleTokens / totalTokens) * 100;
+      const examplePercent = (exampleTokens / unprotectedTotalTokens) * 100;
 
       if (examplePercent <= maxPercent) return { blocks, changes: [] };
 
       const changes: OptimizationChange[] = [];
 
       const newBlocks: AnalyzedBlock[] = blocks.map(block => {
+        if (isProtectedBlock(block)) return block;
         if (block.type !== 'example') return block;
         if (EXAMPLE_TRUNCATED_MARKER_RE.test(block.content)) return block;
 

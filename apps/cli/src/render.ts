@@ -1,3 +1,4 @@
+import { isProtectedBlock } from '@context-compiler/core';
 import type { AnalysisReport } from '@context-compiler/core';
 
 const SEVERITY_ICON: Record<string, string> = {
@@ -24,9 +25,10 @@ export function renderText(report: AnalysisReport): string {
       const preview = block.content.slice(0, 60).replace(/\n/g, ' ');
       const ellipsis = block.content.length > 60 ? '…' : '';
       const type = block.type.padEnd(16);
+      const protectedLabel = isProtectedBlock(block) ? ' protected' : '';
       const tok = String(block.tokenCount).padStart(5);
       const pct = String(block.tokenPercent).padStart(3);
-      lines.push(`[${block.id}] ${type} ${tok} tok  ${pct}%`);
+      lines.push(`[${block.id}] ${type}${protectedLabel} ${tok} tok  ${pct}%`);
       lines.push(`  "${preview}${ellipsis}"`);
     }
   }

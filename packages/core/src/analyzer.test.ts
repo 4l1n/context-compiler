@@ -120,3 +120,23 @@ describe('buildReport — JSON ext', () => {
     expect(report.blocks[0]?.type).toBe('structured_data');
   });
 });
+
+describe('buildReport — protected blocks', () => {
+  it('carries protected metadata into analyzed blocks', () => {
+    const content = [
+      '<!-- context-compiler: protect:start -->',
+      '# Protected',
+      'Be concise.',
+      '<!-- context-compiler: protect:end -->',
+    ].join('\n');
+    const report = buildReport('<text>', content, '.txt', wordTokenizer);
+    expect(report.blocks).toHaveLength(1);
+    expect(report.blocks[0]?.metadata?.protected).toBe(true);
+  });
+
+  it('includes source label in protected marker parse errors', () => {
+    expect(() =>
+      buildReport('<stdin>', '<!-- context-compiler: protect:start -->\nmissing end', '.txt', wordTokenizer),
+    ).toThrow('<stdin>');
+  });
+});

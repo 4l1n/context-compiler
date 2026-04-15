@@ -1,5 +1,6 @@
 import type { ITransform, TransformContext, TransformResult } from './types.js';
 import type { AnalyzedBlock, OptimizationChange } from '../types.js';
+import { isProtectedBlock } from '../protection.js';
 
 /**
  * truncate-tool-output
@@ -43,6 +44,7 @@ export function createTruncateToolOutput(
       const changes: OptimizationChange[] = [];
 
       const newBlocks: AnalyzedBlock[] = blocks.map(block => {
+        if (isProtectedBlock(block)) return block;
         if (block.type !== 'tool_output' || block.tokenCount <= tokenThreshold) {
           return block;
         }

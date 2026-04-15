@@ -1,6 +1,7 @@
 import type { AnalyzedBlock, ITokenizer, OptimizationChange, OptimizationResult } from './types.js';
 import type { AnalysisReport } from './types.js';
 import type { ITransform, TransformContext } from './transforms/types.js';
+import { isProtectedBlock } from './protection.js';
 
 // ---------------------------------------------------------------------------
 // Content assembly
@@ -70,6 +71,7 @@ export function runOptimize(
       tokenizer,
     };
     const result = transform.apply(context);
+    assertProtectedBlocksPreserved(currentBlocks, result.blocks, transform.id);
     allChanges.push(...result.changes);
     currentBlocks = result.blocks;
     currentTotalTokens = currentBlocks.reduce((s, b) => s + b.tokenCount, 0);
@@ -98,4 +100,25 @@ export function runOptimize(
     tokenSavings,
     appliedChanges: allChanges,
   };
+}
+
+function assertProtectedBlocksPreserved(
+  beforeBlocks: AnalyzedBlock[],
+  afterBlocks: AnalyzedBlock[],
+  transformId: string,
+): void {
+  const afterById = new Map(afterBlocks.map(block => [block.id, block]));
+
+  for (const before of beforeBlocks) {
+    if (!isProtectedBlock(before)) continue;
+
+    const after = afterById.get(before.id);
+    if (!after) {
+      throw new Error(`runOptimize: transform "${transformId}" removed protected block ${before.id}`);
+    }
+
+    if (!isProtectedBlock(after) || after.content !== before.content) {
+      throw new Error(`runOptimize: transform "${transformId}" modified protected block ${before.id}`);
+    }
+  }
 }
