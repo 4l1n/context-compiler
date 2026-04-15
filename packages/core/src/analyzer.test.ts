@@ -26,6 +26,13 @@ describe('buildReport — basic structure', () => {
     const report = buildReport('x.txt', 'hello', '.txt', wordTokenizer);
     expect(report.createdAt).toBeInstanceOf(Date);
   });
+
+  it('carries tokenizer metadata when provided', () => {
+    const report = buildReport('x.txt', 'hello', '.txt', wordTokenizer, {
+      tokenizer: { id: 'o200k_base' },
+    });
+    expect(report.tokenizer).toEqual({ id: 'o200k_base' });
+  });
 });
 
 describe('buildReport — token percentages', () => {

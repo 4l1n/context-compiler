@@ -93,6 +93,7 @@ export function runOptimize(
 
   return {
     path,
+    tokenizer: report.tokenizer,
     originalContent,
     optimizedContent,
     originalTokens,

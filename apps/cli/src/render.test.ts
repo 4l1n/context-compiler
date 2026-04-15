@@ -37,6 +37,11 @@ describe('renderText', () => {
     expect(output).toContain('10');
   });
 
+  it('shows tokenizer metadata when present', () => {
+    const output = renderText({ ...baseReport, tokenizer: { id: 'o200k_base' } });
+    expect(output).toContain('Tokenizer: o200k_base');
+  });
+
   it('shows total block count', () => {
     const output = renderText(baseReport);
     expect(output).toContain('2');
@@ -150,5 +155,11 @@ describe('renderJson', () => {
     const output = renderJson(baseReport);
     const parsed = JSON.parse(output) as { blocks: unknown[] };
     expect(parsed.blocks).toHaveLength(2);
+  });
+
+  it('includes tokenizer metadata when present', () => {
+    const output = renderJson({ ...baseReport, tokenizer: { id: 'o200k_base' } });
+    const parsed = JSON.parse(output) as { tokenizer: { id: string } };
+    expect(parsed.tokenizer.id).toBe('o200k_base');
   });
 });

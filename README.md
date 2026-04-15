@@ -8,7 +8,7 @@ It helps you understand what is inside a prompt/context file before you send it 
 
 - Splits `.md`, `.txt`, and `.json` files into analyzable blocks.
 - Classifies blocks with deterministic heuristics.
-- Counts approximate tokens with the current char tokenizer.
+- Counts tokens with a configurable tokenizer.
 - Reports warnings and lint issues for prompt/context debt.
 - Applies safe, deterministic optimize transforms with explicit change records.
 - Preserves explicit protected blocks during optimization.
@@ -71,7 +71,7 @@ Raw text must use `--text`, and piped input must use `--stdin`.
 
 ## Analyze
 
-`analyze` returns block structure, block types, approximate token counts, token percentages, and heuristic warnings.
+`analyze` returns block structure, block types, selected-tokenizer counts, token percentages, and heuristic warnings.
 
 ```bash
 pnpm cc analyze examples/basic-prompt.md
@@ -202,13 +202,28 @@ Minimal config shape:
 
 Unknown rule or transform IDs fail loudly instead of being ignored.
 
+Tokenizer options:
+
+- `char` is the default fallback. It is deterministic, lightweight, and uses `charsPerToken`.
+- `o200k_base` is a real model-family tokenizer option. It is more faithful than `char` for matching models, but it is not a universal tokenizer for every model.
+
+Select `o200k_base` explicitly:
+
+```json
+{
+  "tokenizer": {
+    "default": "o200k_base"
+  }
+}
+```
+
 ## Workspace Layout
 
 | Package | Purpose |
 |---|---|
 | `@context-compiler/core` | parsing, classification, analysis, optimization pipeline |
 | `@context-compiler/rules` | lint rules and lint runner |
-| `@context-compiler/tokenizers` | tokenizer interface and char tokenizer |
+| `@context-compiler/tokenizers` | tokenizer interface, char fallback, and o200k_base tokenizer |
 | `@context-compiler/config` | config schema, defaults, and loader |
 | `@context-compiler/fixtures` | realistic prompt/context fixtures |
 | `apps/cli` | command orchestration and terminal rendering |
@@ -241,6 +256,7 @@ pnpm verify
 
 The benchmark is a local measurement utility over repository fixtures.
 It is useful for comparing changes on the same machine, but it is not a universal performance guarantee.
+It uses the default char tokenizer baseline for comparability.
 
 ```bash
 pnpm benchmark
@@ -254,7 +270,7 @@ BENCH_ITERATIONS=50 pnpm benchmark
 Current limitations:
 
 - Packages remain private and are not prepared for npm publishing.
-- Token counts use the placeholder char tokenizer.
+- Token counts default to the char fallback unless `o200k_base` is selected in config.
 - Classification, linting, and optimization are heuristic and deterministic.
 - Local file, raw text, and stdin workflows are supported.
 

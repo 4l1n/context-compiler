@@ -44,6 +44,7 @@ const elapsedMs = performance.now() - start;
 const averageMs = operations > 0 ? elapsedMs / operations : 0;
 
 console.log('context-compiler benchmark');
+console.log('tokenizer: char');
 console.log(`fixtures: ${promptFixtures.length}`);
 console.log(`iterations: ${iterations}`);
 console.log(`operations: ${operations}`);

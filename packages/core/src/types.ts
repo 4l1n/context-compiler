@@ -48,10 +48,15 @@ export type AnalysisIssue = {
   metadata?: Record<string, unknown>;
 };
 
+export type TokenizerMetadata = {
+  id: string;
+};
+
 // --- Report ---
 
 export type AnalysisReport = {
   path: string;
+  tokenizer?: TokenizerMetadata;
   blocks: AnalyzedBlock[];
   issues: AnalysisIssue[];
   totalBlocks: number;
@@ -78,6 +83,7 @@ export type OptimizationChange = {
 
 export type OptimizationResult = {
   path: string;
+  tokenizer?: TokenizerMetadata;
   originalContent: string;
   optimizedContent: string;
   originalTokens: number;

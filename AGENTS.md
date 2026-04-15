@@ -35,6 +35,7 @@ cd packages/core && pnpm exec vitest run src/parser.test.ts
 
 - Product logic lives in `packages/`.
 - `apps/cli` imports packages, orchestrates commands, and renders output.
+- Tokenizer default stays `char`; `o200k_base` is config-selected.
 - No AI calls, plugins, integrations, frontend, or remote services in the current release scope.
 - Repo-facing text should stay in English.
 

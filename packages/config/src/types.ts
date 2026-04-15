@@ -4,8 +4,10 @@ export type IdToggleConfig = {
   disabled: string[];
 };
 
+export type TokenizerId = 'char' | 'o200k_base';
+
 export type TokenizerConfig = {
-  default: 'char';
+  default: TokenizerId;
   char: {
     charsPerToken: number;
   };
@@ -156,8 +158,10 @@ export function resolveConfig(
 }
 
 function assertConfig(config: ContextCompilerConfig): void {
-  if (config.tokenizer.default !== 'char') {
-    throw new Error(`config.tokenizer.default must be "char", got "${String(config.tokenizer.default)}"`);
+  if (config.tokenizer.default !== 'char' && config.tokenizer.default !== 'o200k_base') {
+    throw new Error(
+      `config.tokenizer.default must be "char" or "o200k_base", got "${String(config.tokenizer.default)}"`,
+    );
   }
   assertPositiveInt(config.tokenizer.char.charsPerToken, 'config.tokenizer.char.charsPerToken');
 

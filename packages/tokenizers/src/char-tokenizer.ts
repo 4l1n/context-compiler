@@ -3,7 +3,7 @@ import type { ITokenizer } from './types.js';
 /**
  * Naive char-based tokenizer.
  * Approximates 1 token ≈ 4 characters (GPT rule of thumb).
- * No external deps. Replace with tiktoken when needed.
+ * Kept as the stable fallback and deterministic test tokenizer.
  */
 export class CharTokenizer implements ITokenizer {
   private readonly charsPerToken: number;

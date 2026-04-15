@@ -20,6 +20,9 @@ export function renderOptimizeText(
 
   lines.push(`\nOptimize: ${result.path}`);
   lines.push(HR);
+  if (result.tokenizer) {
+    lines.push(`Tokenizer: ${result.tokenizer.id}`);
+  }
 
   if (result.appliedChanges.length === 0) {
     lines.push(`No changes. Tokens: ${result.originalTokens}`);

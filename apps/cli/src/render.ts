@@ -18,6 +18,9 @@ export function renderText(report: AnalysisReport): string {
   lines.push(hr);
   lines.push(`Blocks : ${report.totalBlocks}`);
   lines.push(`Tokens : ${report.totalTokens}`);
+  if (report.tokenizer) {
+    lines.push(`Tokenizer: ${report.tokenizer.id}`);
+  }
 
   if (report.blocks.length > 0) {
     lines.push('');

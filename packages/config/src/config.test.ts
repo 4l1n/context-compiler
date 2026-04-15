@@ -10,9 +10,25 @@ describe('resolveConfig', () => {
       tokenizer: { char: { charsPerToken: 6 } },
       optimize: { thresholds: { trimOversizedExamplesPercent: 25 } },
     });
+    expect(config.tokenizer.default).toBe('char');
     expect(config.tokenizer.char.charsPerToken).toBe(6);
     expect(config.optimize.thresholds.trimOversizedExamplesPercent).toBe(25);
     expect(config.lint.warnings.blockTooLong).toBe(defaultConfig.lint.warnings.blockTooLong);
+  });
+
+  it('accepts o200k_base as the selected tokenizer', () => {
+    const config = resolveConfig({
+      tokenizer: { default: 'o200k_base' },
+    });
+    expect(config.tokenizer.default).toBe('o200k_base');
+  });
+
+  it('throws on unknown tokenizer ids', () => {
+    expect(() =>
+      resolveConfig({
+        tokenizer: { default: 'missing-tokenizer' as 'char' },
+      }),
+    ).toThrow('config.tokenizer.default must be "char" or "o200k_base"');
   });
 
   it('throws on invalid ratio values', () => {

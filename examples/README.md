@@ -19,6 +19,8 @@ pnpm cc lint examples/basic-prompt.md --config examples/context-compiler.config.
 pnpm cc optimize examples/basic-prompt.md --dry-run --config examples/context-compiler.config.json
 ```
 
+The default tokenizer is `char`. To try the real model-family tokenizer, set `tokenizer.default` to `o200k_base` in a config file and pass it with `--config`.
+
 Use explicit non-file input:
 
 ```bash

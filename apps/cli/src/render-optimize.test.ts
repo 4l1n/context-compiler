@@ -31,6 +31,11 @@ describe('renderOptimizeText', () => {
     expect(out).toContain('Changes: 1 applied');
   });
 
+  it('shows tokenizer metadata when present', () => {
+    const out = renderOptimizeText({ ...baseResult, tokenizer: { id: 'o200k_base' } }, { dryRun: true });
+    expect(out).toContain('Tokenizer: o200k_base');
+  });
+
   it('shows change reason and before preview', () => {
     const out = renderOptimizeText(baseResult, { dryRun: true });
     expect(out).toContain('remove-exact-duplicates');
@@ -109,6 +114,13 @@ describe('renderOptimizeJson', () => {
   it('includes appliedChanges', () => {
     const parsed = JSON.parse(renderOptimizeJson(baseResult)) as { appliedChanges: unknown[] };
     expect(parsed.appliedChanges).toHaveLength(1);
+  });
+
+  it('includes tokenizer metadata when present', () => {
+    const parsed = JSON.parse(renderOptimizeJson({ ...baseResult, tokenizer: { id: 'o200k_base' } })) as {
+      tokenizer: { id: string };
+    };
+    expect(parsed.tokenizer.id).toBe('o200k_base');
   });
 
   it('is unchanged by diff rendering options handled by the CLI', () => {

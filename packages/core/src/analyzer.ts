@@ -4,10 +4,11 @@ import { parseBlocks } from './parser.js';
 import { classifyBlock } from './classifier.js';
 import { checkWarnings } from './warnings.js';
 import type { WarningThresholds } from './warnings.js';
-import type { ITokenizer, AnalysisReport, AnalyzedBlock } from './types.js';
+import type { ITokenizer, AnalysisReport, AnalyzedBlock, TokenizerMetadata } from './types.js';
 
 export type BuildReportOptions = {
   warningThresholds?: WarningThresholds;
+  tokenizer?: TokenizerMetadata;
 };
 
 /**
@@ -40,6 +41,7 @@ export function buildReport(
 
   return {
     path: filePath,
+    tokenizer: options.tokenizer,
     blocks,
     issues: checkWarnings(blocks, options.warningThresholds),
     totalBlocks: blocks.length,

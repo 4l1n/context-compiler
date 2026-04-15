@@ -37,6 +37,15 @@ describe('runOptimize — no-op', () => {
     const result = runOptimize('/custom/path.md', content, report, [], tok);
     expect(result.path).toBe('/custom/path.md');
   });
+
+  it('carries tokenizer metadata from the analysis report', () => {
+    const content = 'Hello world.';
+    const report = buildReport('/tmp/test.md', content, '.md', tok, {
+      tokenizer: { id: 'o200k_base' },
+    });
+    const result = runOptimize('/tmp/test.md', content, report, [], tok);
+    expect(result.tokenizer).toEqual({ id: 'o200k_base' });
+  });
 });
 
 describe('runOptimize — remove-exact-duplicates integration', () => {

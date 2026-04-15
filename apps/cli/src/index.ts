@@ -9,7 +9,7 @@ import {
   KNOWN_TRANSFORM_IDS,
 } from '@context-compiler/core';
 import { runLint, buildRules, KNOWN_RULE_IDS } from '@context-compiler/rules';
-import { CharTokenizer } from '@context-compiler/tokenizers';
+import { createTokenizer } from '@context-compiler/tokenizers';
 import { renderText, renderJson } from './render.js';
 import { renderLintText, renderLintJson } from './render-lint.js';
 import { renderOptimizeText, renderOptimizeJson } from './render-optimize.js';
@@ -56,8 +56,9 @@ async function cmdAnalyze(argv: string[]): Promise<void> {
       knownRuleIds: KNOWN_RULE_IDS,
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
-    const tokenizer = createTokenizer(config.tokenizer.char.charsPerToken);
-    const report = buildReport(input.path, input.content, input.ext, tokenizer, {
+    const tokenizer = createTokenizer(config.tokenizer);
+    const report = buildReport(input.path, input.content, input.ext, tokenizer.tokenizer, {
+      tokenizer: { id: tokenizer.id },
       warningThresholds: config.lint.warnings,
     });
     console.log(jsonFlag ? renderJson(report) : renderText(report));
@@ -81,8 +82,9 @@ async function cmdLint(argv: string[]): Promise<void> {
       knownRuleIds: KNOWN_RULE_IDS,
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
-    const tokenizer = createTokenizer(config.tokenizer.char.charsPerToken);
-    const report = buildReport(input.path, input.content, input.ext, tokenizer, {
+    const tokenizer = createTokenizer(config.tokenizer);
+    const report = buildReport(input.path, input.content, input.ext, tokenizer.tokenizer, {
+      tokenizer: { id: tokenizer.id },
       warningThresholds: config.lint.warnings,
     });
     const rules = buildRules({
@@ -127,8 +129,9 @@ async function cmdOptimize(argv: string[]): Promise<void> {
       knownRuleIds: KNOWN_RULE_IDS,
       knownTransformIds: KNOWN_TRANSFORM_IDS,
     });
-    const tokenizer = createTokenizer(config.tokenizer.char.charsPerToken);
-    const report = buildReport(input.path, input.content, input.ext, tokenizer, {
+    const tokenizer = createTokenizer(config.tokenizer);
+    const report = buildReport(input.path, input.content, input.ext, tokenizer.tokenizer, {
+      tokenizer: { id: tokenizer.id },
       warningThresholds: config.lint.warnings,
     });
     const transforms = buildTransforms({
@@ -139,7 +142,7 @@ async function cmdOptimize(argv: string[]): Promise<void> {
         trimOversizedExamplesPercent: config.optimize.thresholds.trimOversizedExamplesPercent,
       },
     });
-    const result = runOptimize(input.path, input.content, report, transforms, tokenizer);
+    const result = runOptimize(input.path, input.content, report, transforms, tokenizer.tokenizer);
     const wroteFile = shouldWrite && result.appliedChanges.length > 0;
 
     if (wroteFile) {
@@ -185,10 +188,6 @@ main().catch(err => {
   console.error(err);
   process.exit(1);
 });
-
-function createTokenizer(charsPerToken: number): CharTokenizer {
-  return new CharTokenizer(charsPerToken);
-}
 
 type ParsedArgs = {
   flags: Set<string>;
