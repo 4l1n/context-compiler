@@ -2,6 +2,9 @@
 
 Run these from the repository root.
 
+`pnpm cc` is an in-repo convenience alias. If you have done a source-linked install,
+replace `pnpm cc` with `context-compiler` in any command below.
+
 ```bash
 pnpm install
 pnpm build

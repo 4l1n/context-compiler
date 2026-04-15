@@ -1,8 +1,12 @@
 {
   "name": "@context-compiler/cli",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "description": "Analyze, lint, and deterministically optimize LLM prompt/context files",
+  "keywords": ["llm", "prompt", "context", "cli", "tokenizer", "lint"],
   "private": true,
   "type": "module",
+  "engines": { "node": ">=18" },
+  "files": ["dist"],
   "bin": {
     "context-compiler": "./dist/index.js"
   },

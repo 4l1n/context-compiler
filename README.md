@@ -30,20 +30,58 @@ git clone https://github.com/4l1n/context-compiler.git
 cd context-compiler
 pnpm install
 pnpm build
+```
 
-pnpm cc help
-pnpm cc analyze examples/basic-prompt.md
-pnpm cc lint examples/basic-prompt.md
-pnpm cc optimize examples/basic-prompt.md --dry-run
+`pnpm cc` is an in-repo convenience alias — it is not available outside the cloned repo.
+After the build, any of these work from the repo root:
+
+```bash
+pnpm cc help                                      # in-repo alias
+pnpm cli help                                     # same alias, alternate name
+node apps/cli/dist/index.js help                  # direct node invocation
 ```
 
 `optimize` does not write by default. Use `--write` only when you want to replace the input file.
 
 ```bash
+pnpm cc analyze examples/basic-prompt.md
+pnpm cc lint examples/basic-prompt.md
+pnpm cc optimize examples/basic-prompt.md --dry-run
 pnpm cc optimize examples/basic-prompt.md --write
 ```
 
+## Install (source-linked)
+
+This is a **development/source-linked install** — the CLI binary is symlinked to the cloned
+repo, not bundled as a standalone binary. You must keep the repo on disk for the install to work.
+
+```bash
+git clone https://github.com/4l1n/context-compiler.git
+cd context-compiler
+pnpm install
+pnpm build
+pnpm --filter @context-compiler/cli link --global
+```
+
+After linking, `context-compiler` is the installed command name — available anywhere on the machine:
+
+```bash
+context-compiler help
+context-compiler analyze examples/basic-prompt.md
+context-compiler lint examples/basic-prompt.md
+context-compiler optimize examples/basic-prompt.md --dry-run
+```
+
+To remove the global link:
+
+```bash
+pnpm --filter @context-compiler/cli unlink --global
+```
+
 ## Commands
+
+`pnpm cc` is an in-repo convenience alias. If you've done a source-linked install,
+replace `pnpm cc` with `context-compiler` in any command below.
 
 ```bash
 pnpm cc analyze <file-or-directory> [--json] [--config <path>]
@@ -57,13 +95,6 @@ pnpm cc lint --stdin [--json] [--config <path>]
 pnpm cc optimize <file-or-directory> [--dry-run] [--write] [--diff] [--only <ids>] [--except <ids>] [--json] [--config <path>]
 pnpm cc optimize --text "<raw content>" [--dry-run] [--diff] [--only <ids>] [--except <ids>] [--json] [--config <path>]
 pnpm cc optimize --stdin [--dry-run] [--diff] [--only <ids>] [--except <ids>] [--json] [--config <path>]
-```
-
-You can also run the built CLI directly:
-
-```bash
-pnpm cli analyze examples/basic-prompt.md
-node apps/cli/dist/index.js analyze examples/basic-prompt.md
 ```
 
 Input modes are explicit. A positional argument is always treated as a file or directory path.
