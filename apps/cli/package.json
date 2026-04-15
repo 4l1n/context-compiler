@@ -1,6 +1,6 @@
 {
   "name": "context-compiler-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Analyze, lint, and deterministically optimize LLM prompt/context files",
   "keywords": [
     "llm",
